@@ -17,6 +17,7 @@ import {
 interface CityRouteMapProps {
   city: SyntheticCityData | null;
   riderRoutes?: RiderRoute[];
+  numRiders?: number;
   title: string;
   theme: 'qpso' | 'pso';
   animProgress: number; // 0.0 to 1.0
@@ -30,6 +31,7 @@ interface CityRouteMapProps {
 export const CityRouteMap: React.FC<CityRouteMapProps> = ({
   city,
   riderRoutes = [],
+  numRiders,
   title,
   theme,
   animProgress,
@@ -56,7 +58,28 @@ export const CityRouteMap: React.FC<CityRouteMapProps> = ({
 
   // Calculate live vehicle positions, completed paths, and ETA tooltips
   const vehicleLiveStates = useMemo(() => {
-    if (!city || !riderRoutes || riderRoutes.length === 0) return [];
+    if (!city) return [];
+
+    const depotX = city.depot?.x || 600;
+    const depotY = city.depot?.y || 450;
+
+    if (!riderRoutes || riderRoutes.length === 0) {
+      const fleetCount = numRiders || 5;
+      return Array.from({ length: fleetCount }).map((_, rIdx) => {
+        const angle = (2 * Math.PI * rIdx) / fleetCount;
+        const radius = fleetCount > 5 ? 32 : 24;
+        return {
+          rider_id: rIdx + 1,
+          pos: { x: depotX + Math.cos(angle) * radius, y: depotY + Math.sin(angle) * radius },
+          completedPath: '',
+          remainingPath: '',
+          completedDeliveries: [],
+          currentStopLabel: 'Stationed at Hub (Ready)',
+          etaMin: 0,
+          progressPct: 0
+        };
+      });
+    }
 
     return riderRoutes.map((route, rIdx) => {
       const coords = route.waypoint_coords || [];
@@ -278,52 +301,120 @@ export const CityRouteMap: React.FC<CityRouteMapProps> = ({
             </text>
           ))}
 
-          {/* 4. Secondary Road Network (White/Gray Road Underlay) */}
-          {city.edges.map((edge, idx) => {
-            const isIncident = edge.status === 'incident';
-            return (
-              <line
-                key={`base-edge-${idx}`}
-                x1={edge.x1}
-                y1={edge.y1}
-                x2={edge.x2}
-                y2={edge.y2}
-                stroke={isIncident ? '#FEE2E2' : '#FFFFFF'}
-                strokeWidth={isIncident ? 7 : 4.5}
-                strokeLinecap="round"
-              />
-            );
-          })}
+          {/* 4. Road Network (Real OSM Roads or Synthetic Topology) */}
+          {city.roads && city.roads.length > 0 ? (
+            <g className="real-osm-roads-layer">
+              {/* Residential roads - faint */}
+              {city.roads.filter(r => r.road_type === 'residential').map((r, idx) => (
+                <polyline
+                  key={`osm-res-${idx}`}
+                  points={r.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                  fill="none"
+                  stroke="#94A3B8"
+                  strokeWidth="0.85"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.35}
+                />
+              ))}
+              {/* Tertiary roads - normal */}
+              {city.roads.filter(r => r.road_type === 'tertiary').map((r, idx) => (
+                <polyline
+                  key={`osm-tert-${idx}`}
+                  points={r.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                  fill="none"
+                  stroke="#64748B"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.65}
+                />
+              ))}
+              {/* Secondary roads - medium */}
+              {city.roads.filter(r => r.road_type === 'secondary').map((r, idx) => (
+                <polyline
+                  key={`osm-sec-${idx}`}
+                  points={r.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                  fill="none"
+                  stroke="#475569"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={0.85}
+                />
+              ))}
+              {/* Primary / Trunk roads - thicker */}
+              {city.roads.filter(r => r.road_type === 'primary').map((r, idx) => (
+                <g key={`osm-prim-${idx}`}>
+                  <polyline
+                    points={r.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                    fill="none"
+                    stroke="#CBD5E1"
+                    strokeWidth="5.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <polyline
+                    points={r.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                    fill="none"
+                    stroke="#0284C7"
+                    strokeWidth="3.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              ))}
+            </g>
+          ) : (
+            <>
+              {/* Secondary Road Network (White/Gray Road Underlay) */}
+              {city.edges.map((edge, idx) => {
+                const isIncident = edge.status === 'incident';
+                return (
+                  <line
+                    key={`base-edge-${idx}`}
+                    x1={edge.x1}
+                    y1={edge.y1}
+                    x2={edge.x2}
+                    y2={edge.y2}
+                    stroke={isIncident ? '#FEE2E2' : '#FFFFFF'}
+                    strokeWidth={isIncident ? 7 : 4.5}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
 
-          {/* Road Infill Lines */}
-          {city.edges.map((edge, idx) => {
-            const isIncident = edge.status === 'incident';
-            const isCongested = edge.status === 'congested';
+              {/* Road Infill Lines */}
+              {city.edges.map((edge, idx) => {
+                const isIncident = edge.status === 'incident';
+                const isCongested = edge.status === 'congested';
 
-            let stroke = '#CBD5E1';
-            let width = 2;
+                let stroke = '#CBD5E1';
+                let width = 2;
 
-            if (isIncident) {
-              stroke = '#EF4444';
-              width = 4.5;
-            } else if (isCongested) {
-              stroke = '#FB923C';
-              width = 3;
-            }
+                if (isIncident) {
+                  stroke = '#EF4444';
+                  width = 4.5;
+                } else if (isCongested) {
+                  stroke = '#FB923C';
+                  width = 3;
+                }
 
-            return (
-              <line
-                key={`edge-line-${idx}`}
-                x1={edge.x1}
-                y1={edge.y1}
-                x2={edge.x2}
-                y2={edge.y2}
-                stroke={stroke}
-                strokeWidth={width}
-                strokeLinecap="round"
-              />
-            );
-          })}
+                return (
+                  <line
+                    key={`edge-line-${idx}`}
+                    x1={edge.x1}
+                    y1={edge.y1}
+                    x2={edge.x2}
+                    y2={edge.y2}
+                    stroke={stroke}
+                    strokeWidth={width}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </>
+          )}
 
           {/* 5. Traffic Incident Highlight Zone & Warning Badge (Matching User Request) */}
           {incidentEdges.map((edge, idx) => {
@@ -413,10 +504,13 @@ export const CityRouteMap: React.FC<CityRouteMapProps> = ({
             const color = getRiderColor(rIdx);
             const liveState = vehicleLiveStates[rIdx];
             const isHovered = hoveredVehicle === route.rider_id;
+            const routeOpacity = hoveredVehicle !== null ? (isHovered ? 1.0 : 0.2) : 1.0;
 
             return (
               <g
                 key={`route-group-${route.rider_id}`}
+                className="transition-opacity duration-200"
+                opacity={routeOpacity}
                 onMouseEnter={() => setHoveredVehicle(route.rider_id)}
                 onMouseLeave={() => setHoveredVehicle(null)}
               >

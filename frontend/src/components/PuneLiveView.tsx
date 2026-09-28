@@ -8,7 +8,9 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { PuneRouteMap } from './PuneRouteMap';
+import { AlgorithmScoreboardTable } from './AlgorithmScoreboardTable';
 import { getRiderColor } from '../utils/colors';
+import { useTheme } from '../context/ThemeContext';
 import {
   MapPin,
   Play,
@@ -25,10 +27,14 @@ import {
   Truck,
   ShieldCheck,
   Activity,
-  Layers
+  Layers,
+  Dna,
+  Thermometer
 } from 'lucide-react';
 
 export const PuneLiveView: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [city, setCity] = useState<SyntheticCityData | null>(null);
   const [numDeliveries, setNumDeliveries] = useState<number>(25);
   const [numRiders, setNumRiders] = useState<number>(4);
@@ -38,6 +44,8 @@ export const PuneLiveView: React.FC = () => {
 
   const [qpsoResult, setQpsoResult] = useState<OptimizerResult | null>(null);
   const [psoResult, setPsoResult] = useState<OptimizerResult | null>(null);
+  const [gaResult, setGaResult] = useState<OptimizerResult | null>(null);
+  const [saResult, setSaResult] = useState<OptimizerResult | null>(null);
   const [comparison, setComparison] = useState<ComparisonMetrics | null>(null);
   const [activeIncidents, setActiveIncidents] = useState<TrafficIncident[]>([]);
 
@@ -111,6 +119,8 @@ export const PuneLiveView: React.FC = () => {
       setCity(res.city);
       setQpsoResult(null);
       setPsoResult(null);
+      setGaResult(null);
+      setSaResult(null);
       setComparison(null);
       setActiveIncidents([]);
       setAnimProgress(0);
@@ -128,7 +138,7 @@ export const PuneLiveView: React.FC = () => {
   const handleRunOptimization = async () => {
     try {
       setIsOptimizing(true);
-      addLog('Optimization Started', 'Executing Quantum-Inspired QPSO vs Classical PSO on Pune road graph...', 'info');
+      addLog('Optimization Started', 'Executing QPSO, PSO, GA & SA on Pune road graph...', 'info');
       const res = await api.runPuneOptimization({
         num_particles: 30,
         max_iterations: 80,
@@ -136,18 +146,14 @@ export const PuneLiveView: React.FC = () => {
       });
       setQpsoResult(res.qpso);
       setPsoResult(res.pso);
+      setGaResult(res.ga || null);
+      setSaResult(res.sa || null);
       setComparison(res.comparison);
       setCity(res.city);
       setAnimProgress(0);
       setIsPlaying(true);
 
-      const winText = res.comparison.winner === 'QPSO'
-        ? `QPSO achieved ${Math.abs(res.comparison.cost_diff_pct)}% lower total cost.`
-        : res.comparison.winner === 'PSO'
-        ? `PSO achieved ${Math.abs(res.comparison.cost_diff_pct)}% lower total cost.`
-        : 'Both algorithms achieved matching routing quality.';
-
-      addLog(`Optimization Complete: ${res.comparison.winner} Won`, winText, res.comparison.winner === 'QPSO' ? 'qpso' : 'pso');
+      addLog(`Optimization Complete: ${res.comparison.winner} Won`, res.comparison.winner_reason || `${res.comparison.winner} achieved lowest cost across all algorithms.`, res.comparison.winner === 'QPSO' ? 'qpso' : 'pso');
     } catch (err) {
       console.error(err);
       addLog('Optimization Failed', 'Error running dual metaheuristic routing.', 'warning');
@@ -185,13 +191,15 @@ export const PuneLiveView: React.FC = () => {
       });
       setQpsoResult(res.qpso);
       setPsoResult(res.pso);
+      if (res.ga) setGaResult(res.ga);
+      if (res.sa) setSaResult(res.sa);
       setComparison(res.comparison);
       setCity(res.city);
       setActiveIncidents(res.incidents);
       setAnimProgress(0);
       setIsPlaying(true);
 
-      addLog('Re-Optimization Complete', `Dynamic fleet re-routed: ${res.comparison.winner} found safest detours.`, res.comparison.winner === 'QPSO' ? 'qpso' : 'pso');
+      addLog('Re-Optimization Complete', `Fleet re-optimised: ${res.comparison.winner} had the lowest post-incident cost.`, res.comparison.winner === 'QPSO' ? 'qpso' : 'pso');
     } catch (err) {
       console.error(err);
       addLog('Re-Optimization Failed', 'Could not re-route around incidents.', 'warning');
@@ -235,7 +243,11 @@ export const PuneLiveView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* 1. Hero Regional Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0c1836] border border-cyan-900/50 rounded-2xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+      <div className={`rounded-2xl p-5 sm:p-6 relative overflow-hidden border transition-colors ${
+        isDark
+          ? 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-[#0c1836] border-cyan-900/50 shadow-2xl'
+          : 'bg-gradient-to-r from-cyan-50/80 via-white to-blue-50/70 border-cyan-200/80 shadow-md'
+      }`}>
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -244,44 +256,56 @@ export const PuneLiveView: React.FC = () => {
                 <MapPin size={12} className="animate-pulse" />
                 AUTHENTIC PUNE GIS
               </span>
-              <span className="text-slate-400 text-xs font-mono">
+              <span className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Lat 18.4635°N | Lng 73.8340°E
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-heading font-extrabold text-white tracking-tight">
+            <h1 className={`text-2xl sm:text-3xl font-heading font-extrabold tracking-tight ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>
               Ambegaon – Vadgaon BK – Sinhgad Campus
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
-              Real Pune road network featuring <strong className="text-cyan-300">Sinhgad Road</strong>, <strong className="text-amber-300">NH 48 Bypass (Navale Bridge)</strong>, <strong className="text-emerald-300">SCOE & SKN Hospital</strong>, and real-time dynamic traffic rerouting.
+            <p className={`text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}>
+              Real Pune road network featuring <strong className={isDark ? 'text-cyan-300' : 'text-cyan-700'}>Sinhgad Road</strong>, <strong className={isDark ? 'text-amber-300' : 'text-amber-700'}>NH 48 Bypass (Navale Bridge)</strong>, <strong className={isDark ? 'text-emerald-300' : 'text-emerald-700'}>SCOE & SKN Hospital</strong>, and real-time dynamic traffic rerouting.
             </p>
           </div>
 
           {/* Quick Metrics / Status */}
-          <div className="flex items-center gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800 backdrop-blur-md">
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-[10px] text-slate-400 uppercase font-mono">Depot Hub</p>
-              <p className="text-xs font-bold text-emerald-400">Sinhgad Gate</p>
+          <div className={`flex items-center gap-3 p-3 rounded-xl border backdrop-blur-md transition-colors ${
+            isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white/95 border-slate-200 shadow-sm'
+          }`}>
+            <div className={`text-center px-3 border-r ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <p className={`text-[10px] uppercase font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Depot Hub</p>
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Sinhgad Gate</p>
             </div>
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-[10px] text-slate-400 uppercase font-mono">Active Stops</p>
-              <p className="text-xs font-bold text-white">{city?.deliveries.length || 0}</p>
+            <div className={`text-center px-3 border-r ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <p className={`text-[10px] uppercase font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Active Stops</p>
+              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{city?.deliveries.length || 0}</p>
             </div>
             <div className="text-center px-3">
-              <p className="text-[10px] text-slate-400 uppercase font-mono">Road Segments</p>
-              <p className="text-xs font-bold text-cyan-400">{city?.edges.length || 0}</p>
+              <p className={`text-[10px] uppercase font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Road Segments</p>
+              <p className="text-xs font-bold text-cyan-600 dark:text-cyan-400">{city?.edges.length || 0}</p>
             </div>
           </div>
         </div>
 
         {/* Real Pune Landmark Chips */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-mono text-slate-400">Key Landmarks:</span>
+        <div className={`mt-4 pt-3 border-t flex flex-wrap items-center gap-2 ${
+          isDark ? 'border-slate-800/80' : 'border-slate-200'
+        }`}>
+          <span className={`text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Key Landmarks:</span>
           {(city?.landmarks || []).slice(0, 7).map((lm) => (
             <span
               key={lm.id}
-              className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/60 font-medium flex items-center gap-1"
+              className={`text-[10px] px-2 py-0.5 rounded-md font-medium flex items-center gap-1 border transition-colors ${
+                isDark
+                  ? 'bg-slate-800/90 text-slate-300 border-slate-700/60'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-sm'
+              }`}
             >
-              <Building2 size={10} className="text-cyan-400" />
+              <Building2 size={10} className="text-cyan-600 dark:text-cyan-400" />
               {lm.name}
             </span>
           ))}
@@ -289,12 +313,14 @@ export const PuneLiveView: React.FC = () => {
       </div>
 
       {/* 2. Control Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+      <div className={`border rounded-xl p-4 shadow-sm transition-colors ${
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+      }`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
           {/* Deliveries Count */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Deliveries: <span className="text-cyan-400 font-bold">{numDeliveries}</span>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Deliveries: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{numDeliveries}</span>
             </label>
             <input
               type="range"
@@ -303,14 +329,16 @@ export const PuneLiveView: React.FC = () => {
               step="5"
               value={numDeliveries}
               onChange={(e) => setNumDeliveries(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+              className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${
+                isDark ? 'bg-slate-800' : 'bg-slate-200'
+              }`}
             />
           </div>
 
           {/* Fleet Size */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Delivery Fleet: <span className="text-emerald-400 font-bold">{numRiders} Vans</span>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Delivery Fleet: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{numRiders} Vans</span>
             </label>
             <input
               type="range"
@@ -319,14 +347,16 @@ export const PuneLiveView: React.FC = () => {
               step="1"
               value={numRiders}
               onChange={(e) => setNumRiders(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${
+                isDark ? 'bg-slate-800' : 'bg-slate-200'
+              }`}
             />
           </div>
 
           {/* Vehicle Capacity */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Capacity: <span className="text-indigo-400 font-bold">{riderCapacity} pkgs</span>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Capacity: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{riderCapacity} pkgs</span>
             </label>
             <input
               type="range"
@@ -335,7 +365,9 @@ export const PuneLiveView: React.FC = () => {
               step="1"
               value={riderCapacity}
               onChange={(e) => setRiderCapacity(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-indigo-500 ${
+                isDark ? 'bg-slate-800' : 'bg-slate-200'
+              }`}
             />
           </div>
 
@@ -344,7 +376,11 @@ export const PuneLiveView: React.FC = () => {
             <button
               onClick={handleGenerateProblem}
               disabled={isLoading || isOptimizing}
-              className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-all border border-slate-700 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              className={`w-full py-2 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 shadow-sm'
+              }`}
             >
               <RotateCcw size={13} className={isLoading ? 'animate-spin' : ''} />
               <span>Redistribute Stops</span>
@@ -356,7 +392,7 @@ export const PuneLiveView: React.FC = () => {
             <button
               onClick={handleRunOptimization}
               disabled={isLoading || isOptimizing || isReoptimizing}
-              className="w-full py-2 px-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-900/30 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              className="w-full py-2 px-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <Zap size={14} className={isOptimizing ? 'animate-bounce' : ''} />
               <span>{isOptimizing ? 'Optimizing...' : '⚡ Optimize Pune Routes'}</span>
@@ -365,32 +401,44 @@ export const PuneLiveView: React.FC = () => {
         </div>
 
         {/* Secondary Dynamic Controls: Traffic Simulation & Reoptimization */}
-        <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div className={`mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-3 ${
+          isDark ? 'border-slate-800' : 'border-slate-100'
+        }`}>
           <div className="flex items-center gap-2">
             <button
               onClick={handleSimulateTraffic}
               disabled={isSimulatingTraffic || isOptimizing}
-              className="py-1.5 px-3 bg-rose-950/70 hover:bg-rose-900/80 text-rose-300 border border-rose-800/60 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1.5 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-rose-950/70 hover:bg-rose-900/80 text-rose-300 border-rose-800/60'
+                  : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 shadow-sm'
+              }`}
             >
-              <Flame size={13} className="text-rose-400" />
+              <Flame size={13} className={isDark ? 'text-rose-400' : 'text-rose-600'} />
               <span>🚨 Inject Choke (Navale Bridge / Vadgaon Phata)</span>
             </button>
 
             <button
               onClick={handleReoptimize}
               disabled={isReoptimizing || isOptimizing}
-              className="py-1.5 px-3 bg-cyan-950/70 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-800/60 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-all border flex items-center gap-1.5 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-cyan-950/70 hover:bg-cyan-900/80 text-cyan-300 border-cyan-800/60'
+                  : 'bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border-cyan-200 shadow-sm'
+              }`}
             >
-              <Activity size={13} className="text-cyan-400" />
+              <Activity size={13} className={isDark ? 'text-cyan-400' : 'text-cyan-600'} />
               <span>🔄 Warm Dynamic Re-Routing</span>
             </button>
           </div>
 
           {/* Active Incident Counter */}
           {activeIncidents.length > 0 && (
-            <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-800/80 px-3 py-1 rounded-lg">
-              <AlertTriangle size={13} className="text-rose-400 animate-bounce" />
-              <span className="text-xs text-rose-300 font-medium">
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border ${
+              isDark ? 'bg-rose-950/60 border-rose-800/80 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}>
+              <AlertTriangle size={13} className="text-rose-500 animate-bounce" />
+              <span className="text-xs font-semibold">
                 {activeIncidents.length} active Pune choke point(s) disrupting transit
               </span>
             </div>
@@ -398,55 +446,17 @@ export const PuneLiveView: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Comparison Metrics Header Banner */}
-      {comparison && (
-        <div className={`p-4 rounded-xl border transition-all ${
-          comparison.winner === 'QPSO'
-            ? 'bg-emerald-950/40 border-emerald-500/50 shadow-lg shadow-emerald-950/40'
-            : comparison.winner === 'PSO'
-            ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-950/40'
-            : 'bg-slate-900 border-slate-700'
-        }`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-base shadow-md ${
-                comparison.winner === 'QPSO'
-                  ? 'bg-gradient-to-br from-emerald-500 to-teal-400 text-slate-950'
-                  : comparison.winner === 'PSO'
-                  ? 'bg-gradient-to-br from-indigo-500 to-blue-400 text-white'
-                  : 'bg-slate-700 text-white'
-              }`}>
-                🏆
-              </div>
-              <div>
-                <h4 className="font-heading font-bold text-base text-white flex items-center gap-2">
-                  <span>{comparison.winner === 'QPSO' ? 'Quantum-Inspired QPSO' : comparison.winner === 'PSO' ? 'Classical PSO' : 'Optimal Tie'} Leader</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-mono font-bold bg-white/10 text-white">
-                    {Math.abs(comparison.cost_diff_pct)}% Difference
-                  </span>
-                </h4>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  {comparison.winner_reason || 'Evaluated across authentic Sinhgad/Ambegaon transit corridors.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Side-by-Side Quick Summary Stats */}
-            <div className="flex items-center gap-4 bg-slate-950/70 px-4 py-2 rounded-xl border border-slate-800 font-mono text-xs">
-              <div>
-                <span className="text-emerald-400 font-bold block">QPSO Cost</span>
-                <span className="text-white text-sm font-extrabold">{qpsoResult?.final_cost.toFixed(2)}</span>
-                <span className="text-[10px] text-slate-400 block">{qpsoResult?.execution_time_ms}ms</span>
-              </div>
-              <div className="h-7 w-px bg-slate-800" />
-              <div>
-                <span className="text-indigo-400 font-bold block">PSO Cost</span>
-                <span className="text-white text-sm font-extrabold">{psoResult?.final_cost.toFixed(2)}</span>
-                <span className="text-[10px] text-slate-400 block">{psoResult?.execution_time_ms}ms</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* 3. The 5 Key Measures Scoreboard Table */}
+      {(qpsoResult || psoResult) && (
+        <AlgorithmScoreboardTable
+          qpsoResult={qpsoResult}
+          psoResult={psoResult}
+          gaResult={gaResult}
+          saResult={saResult}
+          comparison={comparison}
+          title="Scoreboard: The 5 Key Measures (Pune Ambegaon)"
+          subtitle="Real-world benchmark across On-Time Deliveries (%), Fleet Time (min), Distance (km), CO₂ / Vans Used, and Solve Latency with per-column winner highlights."
+        />
       )}
 
       {/* 4. Dual Map Visualizer Grid */}
@@ -486,13 +496,17 @@ export const PuneLiveView: React.FC = () => {
 
       {/* 5. Fleet Vehicle Route Colors & Metrics Legend */}
       {(qpsoResult || psoResult) && (
-        <div className="bg-slate-900/95 border border-slate-800 rounded-xl p-4 shadow-lg">
+        <div className={`border rounded-xl p-4 shadow-sm transition-colors ${
+          isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
           <div className="flex items-center justify-between mb-2.5">
-            <h4 className="font-heading font-bold text-xs text-slate-300 flex items-center gap-2 uppercase tracking-wider">
-              <Truck size={14} className="text-cyan-400" />
+            <h4 className={`font-heading font-bold text-xs flex items-center gap-2 uppercase tracking-wider ${
+              isDark ? 'text-slate-300' : 'text-slate-800'
+            }`}>
+              <Truck size={14} className="text-cyan-500" />
               <span>Fleet Vehicle Color Routing Breakdown</span>
             </h4>
-            <span className="text-[10px] font-mono text-slate-500">Color-coded route sectors</span>
+            <span className={`text-[10px] font-mono ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Color-coded route sectors</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -504,8 +518,10 @@ export const PuneLiveView: React.FC = () => {
               return (
                 <div
                   key={`rider-legend-${rIdx}`}
-                  className="bg-slate-950/80 border rounded-xl p-2.5 flex flex-col justify-between transition-all hover:border-slate-600"
-                  style={{ borderColor: `${color.stroke}40` }}
+                  className={`border rounded-xl p-2.5 flex flex-col justify-between transition-all ${
+                    isDark ? 'bg-slate-950/80 hover:border-slate-600' : 'bg-slate-50/80 hover:border-slate-400 shadow-sm'
+                  }`}
+                  style={{ borderColor: `${color.stroke}60` }}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     <div
@@ -514,25 +530,25 @@ export const PuneLiveView: React.FC = () => {
                     >
                       {rIdx + 1}
                     </div>
-                    <span className="font-bold text-xs text-white">Vehicle {rIdx + 1}</span>
+                    <span className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>Vehicle {rIdx + 1}</span>
                   </div>
 
                   <div className="space-y-1 text-[11px] font-mono">
-                    <div className="flex items-center justify-between text-slate-400">
+                    <div className={`flex items-center justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       <span>Stops:</span>
-                      <span className="font-bold text-slate-200">
+                      <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
                         {qpsoRoute?.delivery_count || psoRoute?.delivery_count || 0} pkgs
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-slate-400">
+                    <div className={`flex items-center justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       <span>Dist:</span>
-                      <span className="font-bold text-cyan-300">
+                      <span className="font-bold text-cyan-600 dark:text-cyan-300">
                         {(qpsoRoute?.route_dist_km || psoRoute?.route_dist_km || 0).toFixed(1)} km
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-slate-400">
+                    <div className={`flex items-center justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       <span>Time:</span>
-                      <span className="font-bold text-emerald-300">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-300">
                         {(qpsoRoute?.route_time_min || psoRoute?.route_time_min || 0).toFixed(1)} min
                       </span>
                     </div>
@@ -545,13 +561,17 @@ export const PuneLiveView: React.FC = () => {
       )}
 
       {/* 6. Incident & Optimization Live Audit Feed */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+      <div className={`border rounded-xl p-4 shadow-sm transition-colors ${
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+      }`}>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-heading font-bold text-sm text-slate-200 flex items-center gap-2">
-            <Activity size={15} className="text-cyan-400" />
+          <h4 className={`font-heading font-bold text-sm flex items-center gap-2 ${
+            isDark ? 'text-slate-200' : 'text-slate-900'
+          }`}>
+            <Activity size={15} className="text-cyan-500" />
             <span>Pune Road Traffic & Quantum Dispatch Live Event Log</span>
           </h4>
-          <span className="text-[10px] font-mono text-slate-500">Auto-updating telemetry</span>
+          <span className={`text-[10px] font-mono ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Auto-updating telemetry</span>
         </div>
 
         <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -560,27 +580,27 @@ export const PuneLiveView: React.FC = () => {
               key={log.id}
               className={`p-2.5 rounded-lg border text-xs flex items-start gap-2.5 transition-all ${
                 log.type === 'traffic'
-                  ? 'bg-rose-950/30 border-rose-900/60 text-rose-200'
+                  ? isDark ? 'bg-rose-950/30 border-rose-900/60 text-rose-200' : 'bg-rose-50 border-rose-200 text-rose-800'
                   : log.type === 'qpso'
-                  ? 'bg-emerald-950/30 border-emerald-900/60 text-emerald-200'
+                  ? isDark ? 'bg-emerald-950/30 border-emerald-900/60 text-emerald-200' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   : log.type === 'pso'
-                  ? 'bg-indigo-950/30 border-indigo-900/60 text-indigo-200'
-                  : 'bg-slate-950/60 border-slate-800 text-slate-300'
+                  ? isDark ? 'bg-indigo-950/30 border-indigo-900/60 text-indigo-200' : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                  : isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
               }`}
             >
               <div className="mt-0.5">
-                {log.type === 'traffic' && <AlertTriangle size={13} className="text-rose-400" />}
-                {log.type === 'qpso' && <Zap size={13} className="text-emerald-400" />}
-                {log.type === 'pso' && <Clock size={13} className="text-indigo-400" />}
-                {log.type === 'success' && <CheckCircle2 size={13} className="text-emerald-400" />}
-                {log.type === 'info' && <MapPin size={13} className="text-cyan-400" />}
+                {log.type === 'traffic' && <AlertTriangle size={13} className="text-rose-500" />}
+                {log.type === 'qpso' && <Zap size={13} className="text-emerald-500" />}
+                {log.type === 'pso' && <Clock size={13} className="text-indigo-500" />}
+                {log.type === 'success' && <CheckCircle2 size={13} className="text-emerald-500" />}
+                {log.type === 'info' && <MapPin size={13} className="text-cyan-500" />}
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-white">{log.title}</span>
-                  <span className="font-mono text-[10px] text-slate-500">{log.timestamp}</span>
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{log.title}</span>
+                  <span className={`font-mono text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{log.timestamp}</span>
                 </div>
-                <p className="mt-0.5 text-slate-400 leading-snug">{log.description}</p>
+                <p className={`mt-0.5 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{log.description}</p>
               </div>
             </div>
           ))}

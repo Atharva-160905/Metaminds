@@ -6,7 +6,9 @@ import {
   BenchmarkResponse
 } from '../types';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+  ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '')}/api`
+  : 'http://localhost:8000/api';
 
 export interface GenerateProblemParams {
   num_deliveries: number;
@@ -27,6 +29,9 @@ export interface OptimizationResponse {
   timestamp: number;
   qpso: OptimizerResult;
   pso: OptimizerResult;
+  ga?: OptimizerResult;
+  sa?: OptimizerResult;
+  greedy?: OptimizerResult;
   comparison: ComparisonMetrics;
   city: SyntheticCityData;
 }
@@ -42,6 +47,9 @@ export interface ReoptimizeResponse {
   incidents: TrafficIncident[];
   qpso: OptimizerResult;
   pso: OptimizerResult;
+  ga?: OptimizerResult;
+  sa?: OptimizerResult;
+  greedy?: OptimizerResult;
   comparison: ComparisonMetrics;
   city: SyntheticCityData;
 }
@@ -164,6 +172,74 @@ export const api = {
       body: JSON.stringify(params),
     });
     if (!res.ok) throw new Error('Failed to re-optimize Pune routes');
+    return res.json();
+  },
+
+  // =========================================================================
+  // REAL-WORLD DELHI (OKHLA — NEHRU PLACE — KALKAJI) API CALLS
+  // =========================================================================
+  async getDelhiNetwork(): Promise<{ city: SyntheticCityData; config: any }> {
+    const res = await fetch(`${API_BASE}/delhi/network`);
+    if (!res.ok) throw new Error('Failed to fetch Delhi road network');
+    return res.json();
+  },
+
+  async getDelhiRoads(): Promise<{ roads: any[]; region_name?: string }> {
+    try {
+      // First try static pre-baked JSON in public folder (fastest, no backend hit)
+      const staticRes = await fetch('/data/okhla_roads.json');
+      if (staticRes.ok) return staticRes.json();
+    } catch {
+      // Fallback to backend API
+    }
+    const res = await fetch(`${API_BASE}/delhi/roads`);
+    if (!res.ok) throw new Error('Failed to fetch Delhi road geometry');
+    return res.json();
+  },
+
+  async generateDelhiProblem(params: {
+    num_deliveries: number;
+    num_riders: number;
+    rider_capacity: number;
+    objective: 'time' | 'distance' | 'balanced';
+    seed?: number;
+  }): Promise<{ message: string; city: SyntheticCityData; config: any }> {
+    const res = await fetch(`${API_BASE}/delhi/problem/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to generate Delhi logistics problem');
+    return res.json();
+  },
+
+  async runDelhiOptimization(params: OptimizeParams = {}): Promise<OptimizationResponse> {
+    const res = await fetch(`${API_BASE}/delhi/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to run Delhi dual optimization');
+    return res.json();
+  },
+
+  async simulateDelhiTraffic(incident_count: number = 2): Promise<TrafficSimulateResponse> {
+    const res = await fetch(`${API_BASE}/delhi/traffic/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incident_count }),
+    });
+    if (!res.ok) throw new Error('Failed to simulate Delhi traffic incident');
+    return res.json();
+  },
+
+  async reoptimizeDelhi(params: OptimizeParams = {}): Promise<ReoptimizeResponse> {
+    const res = await fetch(`${API_BASE}/delhi/reoptimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to re-optimize Delhi routes');
     return res.json();
   }
 };

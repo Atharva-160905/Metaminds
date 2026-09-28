@@ -29,6 +29,10 @@ export interface Delivery {
   pos: [number, number];
   base_pos: [number, number];
   demand: number;
+  weight_kg?: number;
+  locality?: string;
+  lat?: number;
+  lng?: number;
   priority: 'normal' | 'high';
 }
 
@@ -53,11 +57,23 @@ export interface PuneLandmark {
   pos: [number, number];
 }
 
+export interface OkhlaRoadSegment {
+  u: number;
+  v: number;
+  road_type: 'primary' | 'secondary' | 'tertiary' | 'residential';
+  road_name: string;
+  length_m: number;
+  oneway: boolean;
+  maxspeed?: string;
+  points: [number, number][];
+}
+
 export interface SyntheticCityData {
   region_name?: string;
   city_name?: string;
   width: number;
   height: number;
+  is_real_osm?: boolean;
   depot: {
     id: string;
     label?: string;
@@ -73,6 +89,7 @@ export interface SyntheticCityData {
   nodes: CityNode[];
   edges: CityEdge[];
   deliveries: Delivery[];
+  roads?: OkhlaRoadSegment[];
 }
 
 export interface DeliveryDetail {
@@ -101,6 +118,14 @@ export interface RiderRoute {
   waypoint_coords: WaypointCoord[];
 }
 
+export interface LocalSearchMetrics {
+  applied: boolean;
+  pre_cost: number;
+  post_cost: number;
+  improvement_pct: number;
+  moves_applied: number;
+}
+
 export interface VRPDecodedSolution {
   fitness: number;
   total_time_min: number;
@@ -108,6 +133,7 @@ export interface VRPDecodedSolution {
   penalty: number;
   rider_routes: RiderRoute[];
   permutation: number[];
+  local_search?: LocalSearchMetrics;
 }
 
 export interface ConvergencePoint {
@@ -116,24 +142,30 @@ export interface ConvergencePoint {
 }
 
 export interface OptimizerResult {
-  algorithm: 'QPSO' | 'PSO';
+  algorithm: 'QPSO' | 'PSO' | 'GA' | 'SA' | 'Greedy NN' | string;
   algorithm_name: string;
   execution_time_ms: number;
   iterations: number;
   population_size: number;
   final_cost: number;
+  pre_local_search_cost?: number;
+  local_search?: LocalSearchMetrics;
   convergence_history: ConvergencePoint[];
   solution: VRPDecodedSolution;
 }
 
 export interface ComparisonMetrics {
-  winner: 'QPSO' | 'PSO' | 'TIE';
+  winner: 'QPSO' | 'PSO' | 'GA' | 'SA' | 'Greedy NN' | 'TIE' | string;
   winner_reason?: string;
   cost_diff: number;
   cost_diff_pct: number;
   time_diff_ms?: number;
   qpso_time_ms: number;
   pso_time_ms: number;
+  ga_time_ms?: number;
+  sa_time_ms?: number;
+  greedy_time_ms?: number;
+  all_costs?: Record<string, number>;
 }
 
 export interface TrafficIncident {
@@ -153,11 +185,15 @@ export interface BenchmarkItem {
   iterations: number;
   qpso_cost: number;
   pso_cost: number;
+  ga_cost?: number;
+  sa_cost?: number;
   qpso_time_ms: number;
   pso_time_ms: number;
+  ga_time_ms?: number;
+  sa_time_ms?: number;
   cost_diff: number;
   cost_diff_pct: number;
-  winner: 'QPSO' | 'PSO' | 'TIE';
+  winner: 'QPSO' | 'PSO' | 'GA' | 'SA' | 'TIE';
 }
 
 export interface BenchmarkResponse {
@@ -166,6 +202,8 @@ export interface BenchmarkResponse {
     total_tested: number;
     qpso_wins: number;
     pso_wins: number;
+    ga_wins?: number;
+    sa_wins?: number;
     ties: number;
   };
 }

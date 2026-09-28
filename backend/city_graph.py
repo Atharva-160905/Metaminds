@@ -256,6 +256,14 @@ class SyntheticCity:
                 })
         return incidents
 
+    def clear_incidents(self):
+        """Resets all edges back to base_time and clears incident statuses."""
+        for u, v in self.graph.edges:
+            edge_data = self.graph[u][v]
+            edge_data["current_time"] = edge_data["base_time"]
+            edge_data["congestion_factor"] = 1.0
+            edge_data["status"] = "normal"
+
     def to_dict(self) -> Dict[str, Any]:
         nodes_out = [
             {

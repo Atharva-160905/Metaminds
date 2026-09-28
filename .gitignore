@@ -12,6 +12,7 @@ frontend/dist-ssr/
 __pycache__/
 backend/__pycache__/
 backend/**/__pycache__/
+backend/cache/
 *.py[cod]
 *$py.class
 *.so

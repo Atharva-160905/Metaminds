@@ -10,15 +10,18 @@ from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
 import time
 
+from .common import initial_population, convergence_speed
+
 class QPSOOptimizer:
     def __init__(
         self,
         problem,
         num_particles: int = 40,
         max_iterations: int = 100,
-        alpha_start: float = 0.85,
-        alpha_end: float = 0.40,
-        seed: Optional[int] = 42
+        alpha_start: float = 1.0,
+        alpha_end: float = 0.5,
+        seed: Optional[int] = 42,
+        seed_greedy: bool = True
     ):
         self.problem = problem
         self.dimension = problem.num_deliveries
@@ -27,6 +30,7 @@ class QPSOOptimizer:
         self.alpha_start = alpha_start
         self.alpha_end = alpha_end
         self.seed = seed
+        self.seed_greedy = seed_greedy
         self.rng = np.random.default_rng(seed)
 
     def optimize(self, warm_state: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -40,43 +44,62 @@ class QPSOOptimizer:
         reinitialized_indices = []
         
         if warm_state is not None and "X" in warm_state and "P" in warm_state:
-            # 1. Warm-start from existing swarm
-            X = np.copy(warm_state["X"])
-            P = np.copy(warm_state["P"])
-            old_P_fit = np.copy(warm_state.get("P_fit", np.zeros(self.num_particles)))
+            old_X = np.asarray(warm_state["X"])
+            old_P = np.asarray(warm_state["P"])
+            old_P_fit = np.asarray(warm_state.get("P_fit", []))
             
-            # Re-evaluate all personal bests on the updated distance/time matrix
-            P_fit = np.zeros(self.num_particles)
-            for i in range(self.num_particles):
-                P_fit[i] = self.problem.evaluate(P[i])
+            # Check dimensional compatibility
+            if old_P.ndim == 2 and old_P.shape[1] == self.dimension and len(old_P) > 0:
+                # Initialize properly-sized swarm
+                X = self.rng.uniform(low_bound, high_bound, size=(self.num_particles, self.dimension))
+                P = np.copy(X)
+                copy_n = min(len(old_P), self.num_particles)
+                X[:copy_n] = old_X[:copy_n]
+                P[:copy_n] = old_P[:copy_n]
                 
-            # Identify affected particles (cost degraded by incident)
-            degradation_ratios = []
-            for i in range(self.num_particles):
-                ratio = P_fit[i] / (old_P_fit[i] + 1e-6) if old_P_fit[i] > 0 else 1.0
-                degradation_ratios.append((ratio, i))
-                
-            degradation_ratios.sort(key=lambda x: x[0], reverse=True)
-            num_reinit = max(2, int(self.num_particles * 0.25))
-            
-            # Reinitialize only the affected particles to inject fresh quantum exploration
-            for k in range(num_reinit):
-                ratio, idx = degradation_ratios[k]
-                if ratio > 1.05 or k < 2:
-                    X[idx] = self.rng.uniform(low_bound, high_bound, size=self.dimension)
-                    P[idx] = np.copy(X[idx])
-                    P_fit[idx] = self.problem.evaluate(P[idx])
-                    reinitialized_indices.append(idx)
+                # Re-evaluate all personal bests on the updated distance/time matrix
+                P_fit = np.zeros(self.num_particles)
+                for i in range(self.num_particles):
+                    P_fit[i] = self.problem.evaluate(P[i])
                     
-            g_best_idx = int(np.argmin(P_fit))
-            G = np.copy(P[g_best_idx])
-            G_fit = float(P_fit[g_best_idx])
-            
-            # In warm start, start alpha at a balanced exploration level
-            effective_alpha_start = 0.85
+                # Identify affected particles (cost degraded by incident)
+                degradation_ratios = []
+                for i in range(self.num_particles):
+                    old_val = old_P_fit[i] if i < len(old_P_fit) and old_P_fit[i] > 0 else P_fit[i]
+                    ratio = P_fit[i] / (old_val + 1e-6)
+                    degradation_ratios.append((ratio, i))
+                    
+                degradation_ratios.sort(key=lambda x: x[0], reverse=True)
+                num_reinit = max(2, int(self.num_particles * 0.25))
+                
+                # Reinitialize only the affected particles to inject fresh quantum exploration
+                for k in range(num_reinit):
+                    ratio, idx = degradation_ratios[k]
+                    if ratio > 1.05 or k < 2:
+                        X[idx] = self.rng.uniform(low_bound, high_bound, size=self.dimension)
+                        P[idx] = np.copy(X[idx])
+                        P_fit[idx] = self.problem.evaluate(P[idx])
+                        reinitialized_indices.append(idx)
+                        
+                g_best_idx = int(np.argmin(P_fit))
+                G = np.copy(P[g_best_idx])
+                G_fit = float(P_fit[g_best_idx])
+                
+                effective_alpha_start = self.alpha_start
+            else:
+                # Fallback to cold initialization if dimension differs
+                X = initial_population(self.problem, self.rng, self.num_particles, self.seed_greedy)
+                P = np.copy(X)
+                P_fit = np.zeros(self.num_particles)
+                for i in range(self.num_particles):
+                    P_fit[i] = self.problem.evaluate(P[i])
+                g_best_idx = int(np.argmin(P_fit))
+                G = np.copy(P[g_best_idx])
+                G_fit = float(P_fit[g_best_idx])
+                effective_alpha_start = self.alpha_start
         else:
-            # Cold initialization
-            X = self.rng.uniform(low_bound, high_bound, size=(self.num_particles, self.dimension))
+            # Cold initialization (greedy tour + random keys, identical for every optimizer)
+            X = initial_population(self.problem, self.rng, self.num_particles, self.seed_greedy)
             P = np.copy(X)
             P_fit = np.zeros(self.num_particles)
             for i in range(self.num_particles):
@@ -123,25 +146,16 @@ class QPSOOptimizer:
                 "cost": round(float(G_fit), 4)
             })
 
+        # Decode particle solution (includes 2-opt and relocate passes)
+        best_solution = self.problem.decode_particle(G)
         execution_time_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
         
         # Calculate real convergence confidence metric
         tail_len = max(5, int(self.max_iterations * 0.15))
+        tail_len = min(tail_len, len(convergence_history) - 1)
         init_tail_cost = convergence_history[-tail_len]["cost"]
         final_tail_cost = convergence_history[-1]["cost"]
-        tail_delta_pct = (init_tail_cost - final_tail_cost) / (init_tail_cost + 1e-6)
-        
-        if tail_delta_pct < 0.005:
-            confidence = round(0.95 + min(0.04, (0.005 - tail_delta_pct) * 10), 2)
-            confidence_status = "High (Converged)"
-        elif tail_delta_pct < 0.025:
-            confidence = round(0.80 + (0.025 - tail_delta_pct) * 7.5, 2)
-            confidence_status = "Medium (Stabilizing)"
-        else:
-            confidence = round(max(0.40, 0.75 - tail_delta_pct * 5), 2)
-            confidence_status = "Low (Still Improving)"
-
-        best_solution = self.problem.decode_particle(G)
+        tail_improvement_pct = round(max(0.0, (init_tail_cost - final_tail_cost) / (init_tail_cost + 1e-6) * 100), 2)
         
         return {
             "algorithm": "QPSO",
@@ -149,10 +163,12 @@ class QPSOOptimizer:
             "execution_time_ms": execution_time_ms,
             "iterations": self.max_iterations,
             "population_size": self.num_particles,
-            "final_cost": round(float(G_fit), 4),
+            "final_cost": round(float(best_solution["fitness"]), 4),
+            "pre_local_search_cost": round(float(G_fit), 4),
+            "local_search": best_solution.get("local_search"),
             "convergence_history": convergence_history,
-            "convergence_confidence": confidence,
-            "convergence_status": confidence_status,
+            "tail_improvement_pct": tail_improvement_pct,
+            **convergence_speed(convergence_history, self.num_particles),
             "reinitialized_particles": len(reinitialized_indices),
             "is_warm_started": warm_state is not None,
             "raw_state": {

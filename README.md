@@ -65,6 +65,18 @@ Open your browser at: **`http://localhost:5173`**
 
 ---
 
+## 📊 Reproducing the Benchmark
+
+```bash
+python scripts/run_real_benchmarks.py     # writes frontend/src/data/benchmark_results.json
+python -m pytest tests                    # consistency, fairness and exact-solver checks
+```
+
+The Benchmark tab and the Home page example read only from that JSON file. See [docs/DISCLOSURE.md](docs/DISCLOSURE.md)
+for seeds, budgets and how the Home page example is chosen, and [docs/formulation.md](docs/formulation.md) for the model.
+
+---
+
 ## 🔬 Scientific Honesty & Quantum-Inspired Clarification
 
 > **Note on Quantum Computing**:

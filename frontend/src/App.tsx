@@ -8,6 +8,8 @@ import { EventLog } from './components/EventLog';
 import { BenchmarkView } from './components/BenchmarkView';
 import { AboutView } from './components/AboutView';
 import { PuneLiveView } from './components/PuneLiveView';
+import { DelhiLiveView } from './components/DelhiLiveView';
+import { HomePage } from './components/HomePage';
 import { DemoGuideModal } from './components/DemoGuideModal';
 import { api } from './services/api';
 import {
@@ -18,11 +20,14 @@ import {
   EventLogItem,
   BenchmarkResponse
 } from './types';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { Play, Sparkles, AlertCircle } from 'lucide-react';
 
-export const App: React.FC = () => {
-  // Navigation
-  const [activeTab, setActiveTab] = useState<'demo' | 'live-map' | 'benchmark' | 'about'>('demo');
+const MainApp: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  // Navigation: Default to Home Page
+  const [activeTab, setActiveTab] = useState<'home' | 'delhi-map' | 'live-map' | 'benchmark' | 'about'>('home');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Setup Parameters
@@ -36,6 +41,8 @@ export const App: React.FC = () => {
   const [city, setCity] = useState<SyntheticCityData | null>(null);
   const [qpsoResult, setQpsoResult] = useState<OptimizerResult | null>(null);
   const [psoResult, setPsoResult] = useState<OptimizerResult | null>(null);
+  const [gaResult, setGaResult] = useState<OptimizerResult | null>(null);
+  const [saResult, setSaResult] = useState<OptimizerResult | null>(null);
   const [comparison, setComparison] = useState<ComparisonMetrics | null>(null);
   const [incidents, setIncidents] = useState<TrafficIncident[]>([]);
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkResponse | null>(null);
@@ -67,24 +74,13 @@ export const App: React.FC = () => {
     setLogs((prev) => [item, ...prev]);
   }, []);
 
-  // Check health and initialize problem on mount
+  // Check health on mount
   useEffect(() => {
     const initApp = async () => {
       try {
-        const health = await api.checkHealth();
+        await api.checkHealth();
         setIsBackendConnected(true);
         addLog('Backend Connected', 'FastAPI service online on localhost:8000', 'success');
-
-        // Initial problem generation
-        const res = await api.generateProblem({
-          num_deliveries: 50,
-          num_riders: 5,
-          rider_capacity: 10,
-          objective: 'balanced',
-          seed: 42,
-        });
-        setCity(res.city);
-        addLog('City Map Generated', 'Synthetic city road network initialized with 50 delivery locations.', 'info');
       } catch (err: any) {
         console.error('Initialization error:', err);
         setIsBackendConnected(false);
@@ -157,6 +153,8 @@ export const App: React.FC = () => {
       setCity(res.city);
       setQpsoResult(null);
       setPsoResult(null);
+      setGaResult(null);
+      setSaResult(null);
       setComparison(null);
       setIncidents([]);
       setHasOptimized(false);
@@ -179,7 +177,7 @@ export const App: React.FC = () => {
   const handleRunOptimization = async () => {
     try {
       setIsOptimizing(true);
-      addLog('Optimization Started', `Executing QPSO & Classical PSO (Objective: ${objective.toUpperCase()})...`, 'info');
+      addLog('Optimization Started', `Executing QPSO, PSO, GA & SA (Objective: ${objective.toUpperCase()})...`, 'info');
 
       const res = await api.runOptimization({
         num_particles: 35,
@@ -188,6 +186,8 @@ export const App: React.FC = () => {
 
       setQpsoResult(res.qpso);
       setPsoResult(res.pso);
+      setGaResult(res.ga || null);
+      setSaResult(res.sa || null);
       setComparison(res.comparison);
       setCity(res.city);
       setHasOptimized(true);
@@ -206,10 +206,24 @@ export const App: React.FC = () => {
         `Best Cost: ${res.pso.final_cost} in ${res.pso.execution_time_ms} ms (${res.pso.iterations} iterations)`,
         'pso'
       );
+      if (res.ga) {
+        addLog(
+          'GA Converged',
+          `Best Cost: ${res.ga.final_cost} in ${res.ga.execution_time_ms} ms (${res.ga.iterations} iterations)`,
+          'info'
+        );
+      }
+      if (res.sa) {
+        addLog(
+          'SA Converged',
+          `Best Cost: ${res.sa.final_cost} in ${res.sa.execution_time_ms} ms (${res.sa.iterations} iterations)`,
+          'info'
+        );
+      }
 
       const winMsg = res.comparison.winner === 'TIE'
         ? 'Both algorithms reached identical solution fitness.'
-        : `${res.comparison.winner} outperformed with ${Math.abs(res.comparison.cost_diff_pct)}% lower cost.`;
+        : `${res.comparison.winner} had the lowest cost (${res.comparison.all_costs?.[res.comparison.winner]}).`;
       addLog('Dual Evaluation Result', winMsg, 'success');
     } catch (err: any) {
       console.error(err);
@@ -252,6 +266,8 @@ export const App: React.FC = () => {
 
       setQpsoResult(res.qpso);
       setPsoResult(res.pso);
+      if (res.ga) setGaResult(res.ga);
+      if (res.sa) setSaResult(res.sa);
       setComparison(res.comparison);
       setCity(res.city);
       setIncidents(res.incidents);
@@ -260,7 +276,7 @@ export const App: React.FC = () => {
       setAnimProgress(0.0);
       setIsPlaying(true);
 
-      addLog('Re-Routing Complete', `New routes generated! QPSO Cost: ${res.qpso.final_cost}, PSO Cost: ${res.pso.final_cost}`, 'success');
+      addLog('Re-Routing Complete', `New routes generated across 4 algorithms! Winner: ${res.comparison.winner} (${res.comparison.cost_diff_pct}% diff)`, 'success');
     } catch (err: any) {
       console.error(err);
       addLog('Re-optimize Error', err.message || 'Error during re-optimization', 'traffic');
@@ -287,6 +303,8 @@ export const App: React.FC = () => {
       setCity(res.city);
       setQpsoResult(null);
       setPsoResult(null);
+      setGaResult(null);
+      setSaResult(null);
       setComparison(null);
       setIncidents([]);
       setHasOptimized(false);
@@ -311,7 +329,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-900 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 selection:bg-cyan-500 selection:text-white ${
+      isDark ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* 1. Header */}
       <Header
         activeTab={activeTab}
@@ -332,69 +352,11 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 1: LIVE DEMO & COMPARISON */}
-        {activeTab === 'demo' && (
-          <>
-            {/* Simulation Setup Panel */}
-            <SetupPanel
-              numDeliveries={numDeliveries}
-              setNumDeliveries={setNumDeliveries}
-              numRiders={numRiders}
-              setNumRiders={setNumRiders}
-              riderCapacity={riderCapacity}
-              setRiderCapacity={setRiderCapacity}
-              objective={objective}
-              setObjective={setObjective}
-              isOptimizing={isOptimizing}
-              onGenerate={() => handleGenerateProblem()}
-              onSelectPreset={handleSelectPreset}
-              onOptimize={handleRunOptimization}
-              onSimulateTraffic={handleSimulateTraffic}
-              onReoptimize={handleReoptimize}
-              onReset={() => {
-                setAnimProgress(0.0);
-                setIsPlaying(false);
-              }}
-              onStartGuidedDemo={() => setIsGuideOpen(true)}
-              hasOptimized={hasOptimized}
-              hasTrafficIncident={incidents.length > 0}
-            />
+        {/* TAB 0: HOME & GUIDED DEMO SHOWCASE (DEFAULT LANDING) */}
+        {activeTab === 'home' && <HomePage onNavigateTab={setActiveTab} />}
 
-            {/* Active Traffic Incident Alert Banner */}
-            <TrafficAlertBanner
-              incidents={incidents}
-              onReoptimize={handleReoptimize}
-              isOptimizing={isOptimizing}
-            />
-
-            {/* Side-By-Side Comparison (QPSO vs Classical PSO) */}
-            <SideBySideComparison
-              city={city}
-              qpsoResult={qpsoResult}
-              psoResult={psoResult}
-              animProgress={animProgress}
-              isPlaying={isPlaying}
-              onTogglePlay={() => setIsPlaying(!isPlaying)}
-              onResetAnim={() => setAnimProgress(0.0)}
-              playbackSpeed={playbackSpeed}
-              onChangeSpeed={setPlaybackSpeed}
-            />
-
-            {/* Convergence Chart & Event Log in 2-column layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <ConvergenceChart
-                  qpsoResult={qpsoResult}
-                  psoResult={psoResult}
-                  comparison={comparison}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <EventLog logs={logs} onClear={() => setLogs([])} />
-              </div>
-            </div>
-          </>
-        )}
+        {/* TAB 1: DELHI OKHLA REAL OPENSTREETMAP DRIVE NETWORK (PRIMARY FLAGSHIP) */}
+        {activeTab === 'delhi-map' && <DelhiLiveView />}
 
         {/* TAB 2: AUTHENTIC PUNE REAL ROAD NETWORK (SINHGAD & AMBEGAON) */}
         {activeTab === 'live-map' && <PuneLiveView />}
@@ -421,15 +383,26 @@ export const App: React.FC = () => {
       />
 
       {/* Footer */}
-      <footer className="bg-[#0B132B] border-t border-slate-800 text-slate-500 py-5 text-center text-xs">
+      <footer className={`border-t py-5 text-center text-xs transition-colors ${
+        isDark ? 'bg-[#0B132B] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>QuantaRoute • SIH 2026 Prototype Demonstration</span>
-          <span className="font-mono text-[11px] text-slate-400">
-            Deterministic Evaluation Suite • No external paid APIs required
+          <span className="font-medium">QuantaRoute • SIH 2026 Prototype Demonstration</span>
+          <span className={`font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+            Deterministic Evaluation Suite • Real OpenStreetMap Drive Topology
           </span>
         </div>
       </footer>
     </div>
   );
 };
+
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <MainApp />
+    </ThemeProvider>
+  );
+};
+
 export default App;

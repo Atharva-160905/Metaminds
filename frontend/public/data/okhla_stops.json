@@ -1,0 +1,916 @@
+{
+  "depot": {
+    "id": "DELHI_OKHLA_DEPOT",
+    "node_id": 12141356972,
+    "label": "NSIC Complex \u2014 Central Depot",
+    "lat": 28.53459,
+    "lng": 77.271555,
+    "pos": [
+      808.3,
+      645.38
+    ]
+  },
+  "stops": [
+    {
+      "id": 1,
+      "node_id": 2885479088,
+      "label": "Stop 1: Nehru Place IT Tower",
+      "locality": "Nehru Place IT Tower",
+      "lat": 28.546398,
+      "lng": 77.258453,
+      "pos": [
+        487.62,
+        312.67
+      ],
+      "base_pos": [
+        489.28,
+        311.49
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 2,
+      "node_id": 1801023518,
+      "label": "Stop 2: Lotus Temple Complex",
+      "locality": "Lotus Temple Complex",
+      "lat": 28.529286,
+      "lng": 77.265803,
+      "pos": [
+        662.95,
+        794.01
+      ],
+      "base_pos": [
+        668.24,
+        795.36
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 3,
+      "node_id": 14031040411,
+      "label": "Stop 3: Kalkaji Mandir Market",
+      "locality": "Kalkaji Mandir Market",
+      "lat": 28.551266,
+      "lng": 77.253162,
+      "pos": [
+        358.35,
+        169.67
+      ],
+      "base_pos": [
+        360.47,
+        173.87
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 4,
+      "node_id": 4214813992,
+      "label": "Stop 4: Govindpuri Metro Colony",
+      "locality": "Govindpuri Metro Colony",
+      "lat": 28.527555,
+      "lng": 77.259524,
+      "pos": [
+        519.16,
+        842.85
+      ],
+      "base_pos": [
+        515.36,
+        844.3
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 5,
+      "node_id": 9867799410,
+      "label": "Stop 5: Okhla Phase-I Block A",
+      "locality": "Okhla Phase-I Block A",
+      "lat": 28.546015,
+      "lng": 77.250779,
+      "pos": [
+        308.19,
+        323.42
+      ],
+      "base_pos": [
+        302.45,
+        322.34
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 6,
+      "node_id": 6193896608,
+      "label": "Stop 6: NSIC Exhibition Ground",
+      "locality": "NSIC Exhibition Ground",
+      "lat": 28.554962,
+      "lng": 77.250083,
+      "pos": [
+        286.77,
+        71.0
+      ],
+      "base_pos": [
+        285.51,
+        69.34
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 7,
+      "node_id": 2950924646,
+      "label": "Stop 7: Jasola Vihar DLF Tower",
+      "locality": "Jasola Vihar DLF Tower",
+      "lat": 28.543307,
+      "lng": 77.258285,
+      "pos": [
+        487.31,
+        394.72
+      ],
+      "base_pos": [
+        485.19,
+        398.91
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 8,
+      "node_id": 9869643718,
+      "label": "Stop 8: Apollo Hospital Delivery",
+      "locality": "Apollo Hospital Delivery",
+      "lat": 28.545919,
+      "lng": 77.25819,
+      "pos": [
+        482.16,
+        321.92
+      ],
+      "base_pos": [
+        482.88,
+        325.05
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 9,
+      "node_id": 3395915064,
+      "label": "Stop 9: Sarita Vihar Society",
+      "locality": "Sarita Vihar Society",
+      "lat": 28.529175,
+      "lng": 77.248105,
+      "pos": [
+        236.17,
+        793.65
+      ],
+      "base_pos": [
+        237.34,
+        798.49
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 10,
+      "node_id": 7026069620,
+      "label": "Stop 10: Okhla Phase-II Workshop",
+      "locality": "Okhla Phase-II Workshop",
+      "lat": 28.542723,
+      "lng": 77.248645,
+      "pos": [
+        256.09,
+        411.99
+      ],
+      "base_pos": [
+        250.48,
+        415.41
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 11,
+      "node_id": 1040925096,
+      "label": "Stop 11: Kalindi Kunj Gate",
+      "locality": "Kalindi Kunj Gate",
+      "lat": 28.53908,
+      "lng": 77.245671,
+      "pos": [
+        180.13,
+        516.03
+      ],
+      "base_pos": [
+        178.07,
+        518.42
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 12,
+      "node_id": 1040895922,
+      "label": "Stop 12: Harkesh Nagar Office",
+      "locality": "Harkesh Nagar Office",
+      "lat": 28.538203,
+      "lng": 77.240717,
+      "pos": [
+        61.96,
+        545.18
+      ],
+      "base_pos": [
+        57.47,
+        543.23
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 13,
+      "node_id": 9869878430,
+      "label": "Stop 13: GK-I M Block Boutique",
+      "locality": "GK-I M Block Boutique",
+      "lat": 28.535835,
+      "lng": 77.254663,
+      "pos": [
+        392.59,
+        614.33
+      ],
+      "base_pos": [
+        397.01,
+        610.19
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 14,
+      "node_id": 786590750,
+      "label": "Stop 14: Chirag Delhi Enclave",
+      "locality": "Chirag Delhi Enclave",
+      "lat": 28.536345,
+      "lng": 77.279718,
+      "pos": [
+        1012.39,
+        600.61
+      ],
+      "base_pos": [
+        1007.05,
+        595.76
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 15,
+      "node_id": 1040895343,
+      "label": "Stop 15: Madanpur Khadar Cluster",
+      "locality": "Madanpur Khadar Cluster",
+      "lat": 28.538144,
+      "lng": 77.24318,
+      "pos": [
+        118.27,
+        540.65
+      ],
+      "base_pos": [
+        117.43,
+        544.9
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 16,
+      "node_id": 6618510092,
+      "label": "Stop 16: Okhla Bird Sanctuary Office",
+      "locality": "Okhla Bird Sanctuary Office",
+      "lat": 28.537445,
+      "lng": 77.257881,
+      "pos": [
+        471.68,
+        569.79
+      ],
+      "base_pos": [
+        475.37,
+        564.66
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 17,
+      "node_id": 4235071141,
+      "label": "Stop 17: Ring Road Junction Box",
+      "locality": "Ring Road Junction Box",
+      "lat": 28.547524,
+      "lng": 77.275327,
+      "pos": [
+        900.77,
+        275.84
+      ],
+      "base_pos": [
+        900.14,
+        279.67
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 18,
+      "node_id": 9855346898,
+      "label": "Stop 18: Mathura Road Warehouse",
+      "locality": "Mathura Road Warehouse",
+      "lat": 28.532339,
+      "lng": 77.266406,
+      "pos": [
+        687.53,
+        710.73
+      ],
+      "base_pos": [
+        682.92,
+        709.03
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 19,
+      "node_id": 2914308155,
+      "label": "Stop 19: Tughlakabad Colony",
+      "locality": "Tughlakabad Colony",
+      "lat": 28.526022,
+      "lng": 77.282317,
+      "pos": [
+        1071.16,
+        886.17
+      ],
+      "base_pos": [
+        1070.32,
+        887.65
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 20,
+      "node_id": 12744506451,
+      "label": "Stop 20: Sangam Vihar Market",
+      "locality": "Sangam Vihar Market",
+      "lat": 28.554827,
+      "lng": 77.242558,
+      "pos": [
+        101.21,
+        70.04
+      ],
+      "base_pos": [
+        102.28,
+        73.17
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 21,
+      "node_id": 12785511270,
+      "label": "Stop 21: Kalkaji Extension Shop",
+      "locality": "Kalkaji Extension Shop",
+      "lat": 28.539016,
+      "lng": 77.282987,
+      "pos": [
+        1081.1,
+        524.74
+      ],
+      "base_pos": [
+        1086.64,
+        520.23
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 22,
+      "node_id": 1042789502,
+      "label": "Stop 22: Nehru Place Epicentre",
+      "locality": "Nehru Place Epicentre",
+      "lat": 28.539946,
+      "lng": 77.262128,
+      "pos": [
+        578.37,
+        494.5
+      ],
+      "base_pos": [
+        578.76,
+        493.93
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 23,
+      "node_id": 1801051943,
+      "label": "Stop 23: Govindpuri Extension",
+      "locality": "Govindpuri Extension",
+      "lat": 28.527565,
+      "lng": 77.262983,
+      "pos": [
+        597.46,
+        847.05
+      ],
+      "base_pos": [
+        599.59,
+        844.03
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 24,
+      "node_id": 6193896616,
+      "label": "Stop 24: Jasola Village Complex",
+      "locality": "Jasola Village Complex",
+      "lat": 28.553893,
+      "lng": 77.248825,
+      "pos": [
+        249.16,
+        98.04
+      ],
+      "base_pos": [
+        254.86,
+        99.57
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 25,
+      "node_id": 9862011594,
+      "label": "Stop 25: Phase-II Industrial Plot",
+      "locality": "Phase-II Industrial Plot",
+      "lat": 28.536427,
+      "lng": 77.257,
+      "pos": [
+        448.27,
+        588.9
+      ],
+      "base_pos": [
+        453.91,
+        593.43
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 26,
+      "node_id": 10275257038,
+      "label": "Stop 26: DND Flyway Service Area",
+      "locality": "DND Flyway Service Area",
+      "lat": 28.532405,
+      "lng": 77.253737,
+      "pos": [
+        380.06,
+        709.06
+      ],
+      "base_pos": [
+        374.45,
+        707.17
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 27,
+      "node_id": 1040992770,
+      "label": "Stop 27: Okhla Mandi",
+      "locality": "Okhla Mandi",
+      "lat": 28.539488,
+      "lng": 77.248827,
+      "pos": [
+        254.05,
+        507.17
+      ],
+      "base_pos": [
+        254.91,
+        506.89
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 28,
+      "node_id": 9867428804,
+      "label": "Stop 28: Nehru Enclave Residence",
+      "locality": "Nehru Enclave Residence",
+      "lat": 28.541195,
+      "lng": 77.241501,
+      "pos": [
+        81.0,
+        456.75
+      ],
+      "base_pos": [
+        76.53,
+        458.62
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 29,
+      "node_id": 9720397578,
+      "label": "Stop 29: Lotus Colony Gate",
+      "locality": "Lotus Colony Gate",
+      "lat": 28.527667,
+      "lng": 77.255493,
+      "pos": [
+        418.29,
+        843.33
+      ],
+      "base_pos": [
+        417.21,
+        841.13
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 30,
+      "node_id": 12143525530,
+      "label": "Stop 30: Kalkaji DDA Flats",
+      "locality": "Kalkaji DDA Flats",
+      "lat": 28.529115,
+      "lng": 77.275903,
+      "pos": [
+        912.42,
+        800.42
+      ],
+      "base_pos": [
+        914.16,
+        800.19
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 31,
+      "node_id": 2885512445,
+      "label": "Stop 31: Govindpuri Jhuggi Area",
+      "locality": "Govindpuri Jhuggi Area",
+      "lat": 28.541496,
+      "lng": 77.26036,
+      "pos": [
+        538.9,
+        455.02
+      ],
+      "base_pos": [
+        535.72,
+        450.11
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 32,
+      "node_id": 4214800278,
+      "label": "Stop 32: Okhla Phase-I Block B",
+      "locality": "Okhla Phase-I Block B",
+      "lat": 28.531612,
+      "lng": 77.257148,
+      "pos": [
+        453.32,
+        734.79
+      ],
+      "base_pos": [
+        457.51,
+        729.59
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 33,
+      "node_id": 9867983986,
+      "label": "Stop 33: NSIC Tool Room",
+      "locality": "NSIC Tool Room",
+      "lat": 28.52913,
+      "lng": 77.279365,
+      "pos": [
+        992.52,
+        802.81
+      ],
+      "base_pos": [
+        998.46,
+        799.77
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 34,
+      "node_id": 9871798388,
+      "label": "Stop 34: Jasola Apollo Lane",
+      "locality": "Jasola Apollo Lane",
+      "lat": 28.55647,
+      "lng": 77.244311,
+      "pos": [
+        148.7,
+        22.35
+      ],
+      "base_pos": [
+        144.97,
+        26.71
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 35,
+      "node_id": 11029660849,
+      "label": "Stop 35: Sarita Vihar Pocket-D",
+      "locality": "Sarita Vihar Pocket-D",
+      "lat": 28.532288,
+      "lng": 77.262766,
+      "pos": [
+        593.34,
+        714.25
+      ],
+      "base_pos": [
+        594.31,
+        710.47
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 36,
+      "node_id": 9855346914,
+      "label": "Stop 36: Phase-II EcoTech Park",
+      "locality": "Phase-II EcoTech Park",
+      "lat": 28.532793,
+      "lng": 77.260675,
+      "pos": [
+        537.57,
+        697.74
+      ],
+      "base_pos": [
+        543.4,
+        696.2
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 37,
+      "node_id": 1740127279,
+      "label": "Stop 37: Kalindi Kunj Park Entry",
+      "locality": "Kalindi Kunj Park Entry",
+      "lat": 28.542125,
+      "lng": 77.252073,
+      "pos": [
+        337.48,
+        432.5
+      ],
+      "base_pos": [
+        333.96,
+        432.34
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 38,
+      "node_id": 2914308198,
+      "label": "Stop 38: Harkesh Nagar Metro Exit",
+      "locality": "Harkesh Nagar Metro Exit",
+      "lat": 28.529158,
+      "lng": 77.276716,
+      "pos": [
+        936.66,
+        795.7
+      ],
+      "base_pos": [
+        933.95,
+        798.98
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 39,
+      "node_id": 2885512434,
+      "label": "Stop 39: GK-I N Block",
+      "locality": "GK-I N Block",
+      "lat": 28.54103,
+      "lng": 77.258389,
+      "pos": [
+        484.11,
+        461.64
+      ],
+      "base_pos": [
+        487.73,
+        463.28
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 40,
+      "node_id": 1486836340,
+      "label": "Stop 40: Chirag Delhi Metro Stn",
+      "locality": "Chirag Delhi Metro Stn",
+      "lat": 28.529551,
+      "lng": 77.262435,
+      "pos": [
+        582.39,
+        786.01
+      ],
+      "base_pos": [
+        586.24,
+        787.86
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 41,
+      "node_id": 1040895587,
+      "label": "Stop 41: Madanpur Extension",
+      "locality": "Madanpur Extension",
+      "lat": 28.537399,
+      "lng": 77.24478,
+      "pos": [
+        161.76,
+        566.85
+      ],
+      "base_pos": [
+        156.38,
+        565.97
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 42,
+      "node_id": 1040924633,
+      "label": "Stop 42: Bird Sanctuary Trail",
+      "locality": "Bird Sanctuary Trail",
+      "lat": 28.531718,
+      "lng": 77.244541,
+      "pos": [
+        148.64,
+        723.85
+      ],
+      "base_pos": [
+        150.56,
+        726.59
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 43,
+      "node_id": 2885479070,
+      "label": "Stop 43: Ring Road Service Lane",
+      "locality": "Ring Road Service Lane",
+      "lat": 28.544903,
+      "lng": 77.252426,
+      "pos": [
+        347.95,
+        353.12
+      ],
+      "base_pos": [
+        342.53,
+        353.79
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 44,
+      "node_id": 6738203202,
+      "label": "Stop 44: Mathura Road Flyover",
+      "locality": "Mathura Road Flyover",
+      "lat": 28.544118,
+      "lng": 77.276276,
+      "pos": [
+        928.99,
+        376.16
+      ],
+      "base_pos": [
+        923.23,
+        375.97
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 45,
+      "node_id": 1041069708,
+      "label": "Stop 45: Tughlakabad Ext Colony",
+      "locality": "Tughlakabad Ext Colony",
+      "lat": 28.53722,
+      "lng": 77.255932,
+      "pos": [
+        428.15,
+        575.77
+      ],
+      "base_pos": [
+        427.9,
+        571.01
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 46,
+      "node_id": 6193896636,
+      "label": "Stop 46: Sangam Vihar Sector-J",
+      "locality": "Sangam Vihar Sector-J",
+      "lat": 28.55404,
+      "lng": 77.250255,
+      "pos": [
+        292.6,
+        96.39
+      ],
+      "base_pos": [
+        289.69,
+        95.42
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 47,
+      "node_id": 1740130349,
+      "label": "Stop 47: Kalkaji Temple Lane",
+      "locality": "Kalkaji Temple Lane",
+      "lat": 28.547058,
+      "lng": 77.27233,
+      "pos": [
+        826.29,
+        297.37
+      ],
+      "base_pos": [
+        827.17,
+        292.83
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 48,
+      "node_id": 1040924558,
+      "label": "Stop 48: Nehru Place Hind Cinema",
+      "locality": "Nehru Place Hind Cinema",
+      "lat": 28.538597,
+      "lng": 77.244264,
+      "pos": [
+        142.77,
+        537.17
+      ],
+      "base_pos": [
+        143.83,
+        532.1
+      ],
+      "demand": 1,
+      "priority": "normal"
+    },
+    {
+      "id": 49,
+      "node_id": 1041939427,
+      "label": "Stop 49: Govindpuri Depot Lane",
+      "locality": "Govindpuri Depot Lane",
+      "lat": 28.552987,
+      "lng": 77.242236,
+      "pos": [
+        89.25,
+        124.36
+      ],
+      "base_pos": [
+        94.43,
+        125.2
+      ],
+      "demand": 1,
+      "priority": "high"
+    },
+    {
+      "id": 50,
+      "node_id": 1041069882,
+      "label": "Stop 50: Jasola District Centre",
+      "locality": "Jasola District Centre",
+      "lat": 28.534041,
+      "lng": 77.252399,
+      "pos": [
+        342.11,
+        666.32
+      ],
+      "base_pos": [
+        341.88,
+        660.91
+      ],
+      "demand": 1,
+      "priority": "normal"
+    }
+  ],
+  "seed": 7
+}

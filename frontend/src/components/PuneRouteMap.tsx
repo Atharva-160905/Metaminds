@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { SyntheticCityData, RiderRoute, PuneLandmark } from '../types';
 import { getRiderColor } from '../utils/colors';
+import { useTheme } from '../context/ThemeContext';
 import {
   Play,
   Pause,
@@ -42,6 +43,8 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
   playbackSpeed,
   onChangeSpeed,
 }) => {
+  const { theme: appTheme } = useTheme();
+  const isDark = appTheme === 'dark';
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [hoveredVehicle, setHoveredVehicle] = useState<number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<any>(null);
@@ -142,7 +145,9 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
 
   if (!city) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-950 text-slate-500 rounded-xl border border-slate-800">
+      <div className={`h-full flex items-center justify-center rounded-xl border ${
+        isDark ? 'bg-slate-950 text-slate-500 border-slate-800' : 'bg-slate-100 text-slate-500 border-slate-200'
+      }`}>
         <p className="text-sm">Loading Pune GIS Network...</p>
       </div>
     );
@@ -153,44 +158,62 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
   const glowColor = isQPSO ? 'rgba(16, 185, 129, 0.3)' : 'rgba(99, 102, 241, 0.3)';
 
   return (
-    <div className="flex flex-col h-full bg-[#070D1E] rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+    <div className={`flex flex-col h-full rounded-xl border shadow-lg overflow-hidden transition-colors ${
+      isDark ? 'bg-[#070D1E] border-slate-800 shadow-2xl' : 'bg-white border-slate-200 shadow-md'
+    }`}>
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#0B1428] border-b border-slate-800">
+      <div className={`flex items-center justify-between px-4 py-2.5 border-b transition-colors ${
+        isDark ? 'bg-[#0B1428] border-slate-800' : 'bg-slate-50 border-slate-200'
+      }`}>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded-full shadow-md"
             style={{ backgroundColor: themeColor, boxShadow: `0 0 10px ${glowColor}` }}
           />
-          <h3 className="font-heading font-bold text-sm text-slate-100 tracking-wide flex items-center gap-2">
+          <h3 className={`font-heading font-bold text-sm tracking-wide flex items-center gap-2 ${
+            isDark ? 'text-slate-100' : 'text-slate-900'
+          }`}>
             <span>{title}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+              isDark
+                ? 'bg-cyan-950 text-cyan-300 border-cyan-800'
+                : 'bg-cyan-50 text-cyan-800 border-cyan-200'
+            }`}>
               Sinhgad / Ambegaon Live Grid
             </span>
           </h3>
         </div>
 
         {/* Map Zoom Controls */}
-        <div className="flex items-center gap-1 bg-slate-950/80 rounded-lg p-0.5 border border-slate-800">
+        <div className={`flex items-center gap-1 rounded-lg p-0.5 border ${
+          isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
           <button
             onClick={() => setZoomLevel(prev => Math.max(0.75, prev - 0.15))}
-            className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
+            className={`p-1 rounded transition-colors ${
+              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
             title="Zoom Out"
           >
             <Minus size={13} />
           </button>
-          <span className="text-[10px] font-mono text-slate-400 px-1">
+          <span className={`text-[10px] font-mono px-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             {Math.round(zoomLevel * 100)}%
           </span>
           <button
             onClick={() => setZoomLevel(prev => Math.min(1.8, prev + 0.15))}
-            className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
+            className={`p-1 rounded transition-colors ${
+              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
             title="Zoom In"
           >
             <Plus size={13} />
           </button>
           <button
             onClick={() => setZoomLevel(1.0)}
-            className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors ml-0.5"
+            className={`p-1 rounded transition-colors ml-0.5 ${
+              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
             title="Reset View"
           >
             <Maximize2 size={13} />
@@ -199,7 +222,9 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
       </div>
 
       {/* Main SVG Map Area */}
-      <div className="relative flex-1 bg-[#050B17] overflow-hidden">
+      <div className={`relative flex-1 overflow-hidden transition-colors ${
+        isDark ? 'bg-[#050B17]' : 'bg-[#f8fafc]'
+      }`}>
         <svg
           viewBox={`0 0 ${city.width} ${city.height}`}
           className="w-full h-full cursor-crosshair transition-transform duration-200"
@@ -208,14 +233,14 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
           <defs>
             {/* GIS Clean Grid Pattern */}
             <pattern id="puneGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#0D1930" strokeWidth="0.6" />
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke={isDark ? "#0D1930" : "#e2e8f0"} strokeWidth="0.6" />
             </pattern>
 
             {/* River Gradient */}
             <linearGradient id="puneRiverGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0284c7" stopOpacity="0.35" />
-              <stop offset="50%" stopColor="#0369a1" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#082f49" stopOpacity="0.35" />
+              <stop offset="0%" stopColor={isDark ? "#0284c7" : "#0284c7"} stopOpacity={isDark ? "0.35" : "0.5"} />
+              <stop offset="50%" stopColor={isDark ? "#0369a1" : "#0ea5e9"} stopOpacity={isDark ? "0.45" : "0.6"} />
+              <stop offset="100%" stopColor={isDark ? "#082f49" : "#38bdf8"} stopOpacity={isDark ? "0.35" : "0.5"} />
             </linearGradient>
 
             {/* Incident Alert Filter */}
@@ -238,7 +263,7 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
           </defs>
 
           {/* Background Grid */}
-          <rect width={city.width} height={city.height} fill="#050B17" />
+          <rect width={city.width} height={city.height} fill={isDark ? "#050B17" : "#f8fafc"} />
           <rect width={city.width} height={city.height} fill="url(#puneGrid)" />
 
           {/* 1. Regional Shaded Zones (Visual Geography) */}
@@ -249,14 +274,14 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
             width="600"
             height="230"
             rx="24"
-            fill="#064E3B"
-            fillOpacity="0.12"
+            fill={isDark ? "#064E3B" : "#d1fae5"}
+            fillOpacity={isDark ? "0.12" : "0.45"}
             stroke="#10B981"
             strokeWidth="1.2"
             strokeDasharray="6, 6"
             strokeOpacity="0.35"
           />
-          <text x="500" y="415" fill="#10B981" fontSize="11" fontFamily="sans-serif" fontWeight="800" textAnchor="middle" opacity="0.4" letterSpacing="3">
+          <text x="500" y="415" fill={isDark ? "#10B981" : "#047857"} fontSize="11" fontFamily="sans-serif" fontWeight="800" textAnchor="middle" opacity={isDark ? "0.4" : "0.75"} letterSpacing="3">
             SINHGAD INSTITUTES CAMPUS QUAD
           </text>
 
@@ -267,14 +292,14 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
             width="750"
             height="180"
             rx="20"
-            fill="#1E1B4B"
-            fillOpacity="0.12"
+            fill={isDark ? "#1E1B4B" : "#ede9fe"}
+            fillOpacity={isDark ? "0.12" : "0.4"}
             stroke="#6366F1"
             strokeWidth="1.0"
             strokeDasharray="4, 4"
             strokeOpacity="0.25"
           />
-          <text x="575" y="675" fill="#818CF8" fontSize="10" fontFamily="sans-serif" fontWeight="700" textAnchor="middle" opacity="0.4" letterSpacing="2.5">
+          <text x="575" y="675" fill={isDark ? "#818CF8" : "#4338ca"} fontSize="10" fontFamily="sans-serif" fontWeight="700" textAnchor="middle" opacity={isDark ? "0.4" : "0.75"} letterSpacing="2.5">
             AMBEGAON BK RESIDENTIAL SECTOR
           </text>
 
@@ -292,12 +317,12 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
               <path
                 d={riverPathD}
                 fill="none"
-                stroke="#38bdf8"
+                stroke={isDark ? "#38bdf8" : "#0284c7"}
                 strokeWidth="2.5"
                 strokeDasharray="14, 8"
                 opacity={0.6}
               />
-              <text x="600" y="105" fill="#38bdf8" fontSize="11" fontFamily="sans-serif" fontWeight="800" textAnchor="middle" opacity="0.7" letterSpacing="3">
+              <text x="600" y="105" fill={isDark ? "#38bdf8" : "#0284c7"} fontSize="11" fontFamily="sans-serif" fontWeight="800" textAnchor="middle" opacity={isDark ? "0.7" : "0.9"} letterSpacing="3">
                 ~ MUTHA RIVER & CANAL CORRIDOR ~
               </text>
             </g>
@@ -311,17 +336,17 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
               const isSinhgadRd = edge.road_name?.includes('Sinhgad Road');
               const isCampus = edge.road_name?.includes('Campus') || edge.road_name?.includes('SCOE') || edge.road_name?.includes('SKN') || edge.road_name?.includes('Law');
 
-              let strokeColor = '#172A46';
+              let strokeColor = isDark ? '#172A46' : '#cbd5e1';
               let strokeW = 3.5;
 
               if (isHighway) {
-                strokeColor = '#d97706';
+                strokeColor = isDark ? '#d97706' : '#b45309';
                 strokeW = 6.0;
               } else if (isSinhgadRd) {
-                strokeColor = '#0891b2';
+                strokeColor = isDark ? '#0891b2' : '#0284c7';
                 strokeW = 5.0;
               } else if (isCampus) {
-                strokeColor = '#059669';
+                strokeColor = isDark ? '#059669' : '#059669';
                 strokeW = 4.0;
               }
 
@@ -366,7 +391,7 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
                       y1={edge.y1}
                       x2={edge.x2}
                       y2={edge.y2}
-                      stroke="#cffafe"
+                      stroke={isDark ? "#cffafe" : "#ffffff"}
                       strokeWidth="1.0"
                       strokeDasharray="6, 5"
                       opacity={0.7}
@@ -420,14 +445,14 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
           </g>
 
           {/* 4. Arterial Labels directly in Road Corridors */}
-          <g className="pune-corridor-titles" opacity={0.65}>
-            <text x="600" y="195" fill="#22d3ee" fontSize="10" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" letterSpacing="2">
+          <g className="pune-corridor-titles" opacity={isDark ? 0.65 : 0.85}>
+            <text x="600" y="195" fill={isDark ? "#22d3ee" : "#0891b2"} fontSize="10" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" letterSpacing="2">
               ◄ SINHGAD ROAD (MAIN ARTERIAL) ►
             </text>
             <text
               x="1055"
               y="580"
-              fill="#fbbf24"
+              fill={isDark ? "#fbbf24" : "#b45309"}
               fontSize="10"
               fontFamily="sans-serif"
               fontWeight="bold"
@@ -447,12 +472,28 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
               if (!live || !route.waypoint_coords || route.waypoint_coords.length < 2) return null;
               const isHovered = hoveredVehicle === route.rider_id;
 
+              const fullRoutePoints = (route.waypoint_coords || []).map(pt => `${pt.x},${pt.y}`).join(' ');
+
               return (
                 <g
                   key={`route-${route.rider_id}`}
                   onMouseEnter={() => setHoveredVehicle(route.rider_id)}
                   onMouseLeave={() => setHoveredVehicle(null)}
                 >
+                  {/* Full Planned Route Baseline */}
+                  {fullRoutePoints && (
+                    <polyline
+                      points={fullRoutePoints}
+                      fill="none"
+                      stroke={color.stroke}
+                      strokeWidth={isHovered ? 3.5 : 2.2}
+                      strokeDasharray="5, 4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeOpacity={isHovered ? 0.8 : 0.45}
+                    />
+                  )}
+
                   {/* Remaining Route (Dashed Preview) */}
                   {live.remainingPath && (
                     <polyline
@@ -488,30 +529,30 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
           {/* 6. Clean Non-Overlapping Landmark Badges */}
           <g className="pune-landmarks-layer">
             {(city.landmarks || []).map((lm: any) => {
-              let badgeBg = '#0F172A';
+              let badgeBg = isDark ? '#0F172A' : '#FFFFFF';
               let badgeBorder = '#059669';
-              let badgeText = '#6EE7B7';
+              let badgeText = isDark ? '#6EE7B7' : '#065f46';
               let emoji = '📍';
 
               if (lm.type === 'college') {
                 badgeBorder = '#10B981';
-                badgeText = '#A7F3D0';
+                badgeText = isDark ? '#A7F3D0' : '#047857';
                 emoji = '🎓';
               } else if (lm.type === 'hospital') {
                 badgeBorder = '#E11D48';
-                badgeText = '#FDA4AF';
+                badgeText = isDark ? '#FDA4AF' : '#9f1239';
                 emoji = '🏥';
               } else if (lm.type === 'bridge') {
                 badgeBorder = '#F59E0B';
-                badgeText = '#FDE68A';
+                badgeText = isDark ? '#FDE68A' : '#92400e';
                 emoji = '🌉';
               } else if (lm.type === 'commercial') {
                 badgeBorder = '#6366F1';
-                badgeText = '#C7D2FE';
+                badgeText = isDark ? '#C7D2FE' : '#3730a3';
                 emoji = '🛒';
               } else if (lm.type === 'junction') {
                 badgeBorder = '#06B6D4';
-                badgeText = '#A5F3FC';
+                badgeText = isDark ? '#A5F3FC' : '#155e75';
                 emoji = '🚦';
               }
 
@@ -589,14 +630,14 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
               width="140"
               height="18"
               rx="9"
-              fill="#064E3B"
-              stroke="#34D399"
+              fill={isDark ? "#064E3B" : "#ecfdf5"}
+              stroke="#10B981"
               strokeWidth="1.5"
             />
             <text
               x={city.depot.x}
               y={city.depot.y + 26}
-              fill="#A7F3D0"
+              fill={isDark ? "#A7F3D0" : "#065f46"}
               fontSize="9"
               fontFamily="sans-serif"
               textAnchor="middle"
@@ -712,21 +753,26 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
         </svg>
 
         {/* Dynamic Tooltip: Hovered Node / Delivery */}
+        {/* Dynamic Tooltip: Hovered Node / Delivery */}
         {hoveredNode && (
           <div
-            className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 text-white text-xs p-2.5 rounded-lg shadow-xl backdrop-blur-md"
+            className={`absolute z-30 pointer-events-none text-xs p-2.5 rounded-lg border backdrop-blur-md transition-colors ${
+              isDark
+                ? 'bg-slate-900/95 border-slate-700 text-white shadow-xl'
+                : 'bg-white/95 border-slate-200 text-slate-800 shadow-md'
+            }`}
             style={{
               left: `${(hoveredNode.pos[0] / city.width) * 100}%`,
               top: `${(hoveredNode.pos[1] / city.height) * 100}%`,
               transform: 'translate(-50%, -125%)',
             }}
           >
-            <p className="font-bold text-cyan-300 flex items-center gap-1.5">
+            <p className={`font-bold flex items-center gap-1.5 ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
               <MapPin size={13} />
               {hoveredNode.label || `Stop #${hoveredNode.id}`}
             </p>
-            <p className="text-[11px] text-slate-300 mt-0.5">
-              Locality: <span className="font-semibold text-white">{hoveredNode.locality || 'Vadgaon/Ambegaon'}</span>
+            <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              Locality: <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{hoveredNode.locality || 'Vadgaon/Ambegaon'}</span>
             </p>
           </div>
         )}
@@ -734,21 +780,27 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
         {/* Dynamic Tooltip: Hovered Landmark */}
         {hoveredLandmark && (
           <div
-            className="absolute z-30 pointer-events-none bg-slate-900/95 border border-emerald-500/50 text-white text-xs p-2.5 rounded-lg shadow-2xl backdrop-blur-md"
+            className={`absolute z-30 pointer-events-none text-xs p-2.5 rounded-lg border backdrop-blur-md transition-colors ${
+              isDark
+                ? 'bg-slate-900/95 border-emerald-500/50 text-white shadow-2xl'
+                : 'bg-white/95 border-emerald-300 text-slate-800 shadow-md'
+            }`}
             style={{
               left: `${(hoveredLandmark.pos[0] / city.width) * 100}%`,
               top: `${(hoveredLandmark.pos[1] / city.height) * 100}%`,
               transform: 'translate(-50%, -125%)',
             }}
           >
-            <p className="font-bold text-emerald-300 flex items-center gap-1.5">
+            <p className={`font-bold flex items-center gap-1.5 ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
               <Building2 size={14} />
               {hoveredLandmark.name}
             </p>
-            <p className="text-[11px] text-slate-300 mt-0.5">
+            <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               {hoveredLandmark.desc || 'Pune Landmark Corridor'}
             </p>
-            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-mono">
+            <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono ${
+              isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-800 font-semibold'
+            }`}>
               {hoveredLandmark.type} zone
             </span>
           </div>
@@ -756,7 +808,9 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
       </div>
 
       {/* Playback & Animation Controller Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-[#0B1428] border-t border-slate-800">
+      <div className={`flex items-center justify-between px-4 py-2 border-t transition-colors ${
+        isDark ? 'bg-[#0B1428] border-slate-800' : 'bg-slate-50 border-slate-200'
+      }`}>
         <div className="flex items-center gap-2">
           <button
             onClick={onTogglePlay}
@@ -774,22 +828,28 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
 
           <button
             onClick={onResetAnim}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition-colors"
+            className={`p-1.5 rounded-md transition-colors ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm'
+            }`}
             title="Reset Simulation"
           >
             <RotateCcw size={13} />
           </button>
 
           {/* Playback Speed Multipliers */}
-          <div className="flex items-center gap-0.5 bg-slate-950 rounded-md p-0.5 border border-slate-800">
+          <div className={`flex items-center gap-0.5 rounded-md p-0.5 border ${
+            isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+          }`}>
             {[1, 2, 4].map((spd) => (
               <button
                 key={spd}
                 onClick={() => onChangeSpeed(spd)}
                 className={`px-1.5 py-0.5 text-[10px] font-mono rounded ${
                   playbackSpeed === spd
-                    ? 'bg-slate-700 text-white font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    ? isDark ? 'bg-slate-700 text-white font-bold' : 'bg-slate-200 text-slate-900 font-bold'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {spd}x
@@ -800,8 +860,10 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
 
         {/* Progress Slider */}
         <div className="flex items-center gap-3 flex-1 max-w-xs mx-4">
-          <span className="text-[10px] font-mono text-slate-400">Progress</span>
-          <div className="relative flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <span className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Progress</span>
+          <div className={`relative flex-1 h-1.5 rounded-full overflow-hidden ${
+            isDark ? 'bg-slate-800' : 'bg-slate-200'
+          }`}>
             <div
               className="absolute left-0 top-0 h-full transition-all duration-75"
               style={{
@@ -810,18 +872,18 @@ export const PuneRouteMap: React.FC<PuneRouteMapProps> = ({
               }}
             />
           </div>
-          <span className="text-[10px] font-mono text-slate-300 font-bold">
+          <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
             {Math.round(animProgress * 100)}%
           </span>
         </div>
 
         {/* Route Stats Summary */}
-        <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+        <div className={`flex items-center gap-3 text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
           <div>
-            Stops: <span className="text-white font-bold">{city.deliveries.length}</span>
+            Stops: <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{city.deliveries.length}</span>
           </div>
           <div>
-            Vans: <span className="text-white font-bold">{riderRoutes.length}</span>
+            Vans: <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{riderRoutes.length}</span>
           </div>
         </div>
       </div>
