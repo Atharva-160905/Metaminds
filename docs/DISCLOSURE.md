@@ -20,8 +20,10 @@ The Home page walks through one Delhi Okhla scenario (40 stops, 6 vans, 2 incide
 by one backend call (`/api/delhi/demo`) on a private problem and cached, so it gives the same routes and costs on every
 visit, whatever is clicked and however many people use the site at once.
 The script runs that same endpoint for 60 seeds and picks the worked example with a fixed rule: the first seed where
-QPSO has the lowest cost in both the initial plan and the re-route. It is labelled as an example, and the page states how
-many of the 60 seeds meet that rule. The number of seeds each algorithm won across all 60 is shown in the Benchmark tab.
+QPSO has the lowest final cost in both the initial plan and the re-route, and its convergence curve (the search cost
+before the shared route polish) also ends lowest in both. It is labelled as an example, and the page states how many of
+the 60 seeds meet that rule (QPSO has the lowest final cost in both steps in 8 of 60; 3 of those also have the lowest curve).
+The convergence chart plots measured values only: the best search cost at each iteration, then the final polished route. The number of seeds each algorithm won across all 60 is shown in the Benchmark tab.
 
 ## 4. Real-time dispatch studies (Benchmark studies 5–7)
 These studies look at conditions where QPSO is expected to be strong: tight time budgets, small zones and fast

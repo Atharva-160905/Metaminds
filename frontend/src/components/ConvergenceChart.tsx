@@ -81,55 +81,26 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
     );
   }
 
-  // Realistic routing cost normalization
-  // Metaheuristics start at unoptimized baseline (~35% above Greedy) and descend to their true final_cost
-  const greedyCost = greedyResult?.final_cost ?? 1134.52;
-  const baseStart = Math.round(greedyCost * 1.35);
+  // Measured values only: the best search cost at each iteration (convergence_history), followed by one
+  // last point for the final route after the shared 2-opt + relocate polish (final_cost).
+  const greedyCost = greedyResult?.final_cost ?? 0;
 
-  const buildNormalizedHistory = (
-    result: OptimizerResult | null | undefined,
-    startOffset: number
-  ): number[] => {
+  const buildHistory = (result: OptimizerResult | null | undefined): number[] => {
     if (!result) return [];
-    const finalCost = result.final_cost;
-    const rawHist = result.convergence_history || [];
-    const targetStart = baseStart + startOffset;
-
-    if (rawHist.length === 0) {
-      const totalSteps = result.iterations || 80;
-      return Array.from({ length: totalSteps + 1 }, (_, t) => {
-        const decay = Math.exp(-0.065 * t);
-        return Number((finalCost + (targetStart - finalCost) * decay).toFixed(2));
-      });
-    }
-
-    const firstCost = rawHist[0]?.cost ?? targetStart;
-    const lastCost = rawHist[rawHist.length - 1]?.cost ?? finalCost;
-    const rawSpan = firstCost - lastCost;
-
-    return rawHist.map((pt, idx) => {
-      if (idx === rawHist.length - 1) return finalCost;
-      if (rawSpan <= 0.001) {
-        const decay = Math.exp(-0.065 * idx);
-        return Number((finalCost + (targetStart - finalCost) * decay).toFixed(2));
-      }
-      const progress = Math.max(0, Math.min(1, (firstCost - pt.cost) / rawSpan));
-      const scaledCost = targetStart - progress * (targetStart - finalCost);
-      return Number(scaledCost.toFixed(2));
-    });
+    const search = (result.convergence_history || []).map(pt => Number(pt.cost.toFixed(2)));
+    return [...search, Number(result.final_cost.toFixed(2))];
   };
 
-  const qpsoSeries = buildNormalizedHistory(qpsoResult, 12);
-  const psoSeries = buildNormalizedHistory(psoResult, 24);
-  const gaSeries = buildNormalizedHistory(gaResult, 30);
-  const saSeries = buildNormalizedHistory(saResult, 38);
+  const qpsoSeries = buildHistory(qpsoResult);
+  const psoSeries = buildHistory(psoResult);
+  const gaSeries = buildHistory(gaResult);
+  const saSeries = buildHistory(saResult);
 
   const maxIters = Math.max(
     qpsoSeries.length,
     psoSeries.length,
     gaSeries.length,
-    saSeries.length,
-    qpsoResult.iterations || 80
+    saSeries.length
   );
 
   const chartData: any[] = [];
@@ -141,7 +112,7 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
     };
     if (gaResult) point.GA = gaSeries[i] ?? gaSeries[gaSeries.length - 1] ?? gaResult.final_cost;
     if (saResult) point.SA = saSeries[i] ?? saSeries[saSeries.length - 1] ?? saResult.final_cost;
-    point['Greedy NN'] = Number(greedyCost.toFixed(2));
+    if (greedyResult) point['Greedy NN'] = Number(greedyCost.toFixed(2));
     chartData.push(point);
   }
 
@@ -276,13 +247,12 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
 
   // X-axis ticks (every 10 or 20)
   const xStepInterval = maxIters > 50 ? 10 : 5;
+  // Regular ticks stop short of the last point, which is labelled "Polished", so the two labels never overlap
   const xTicks = [];
-  for (let i = 0; i < maxIters; i += xStepInterval) {
+  for (let i = 0; i < maxIters - 1 - xStepInterval / 2; i += xStepInterval) {
     xTicks.push(i);
   }
-  if (xTicks[xTicks.length - 1] !== maxIters - 1) {
-    xTicks.push(maxIters - 1);
-  }
+  xTicks.push(maxIters - 1);
 
   const activeHoverData = hoveredIdx !== null ? chartData[hoveredIdx] : null;
 
@@ -308,7 +278,7 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
             </span>
           </div>
           <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Iterative routing cost descent across {maxIters} iterations • Evolutionary descent vs heuristic baseline
+            Measured best cost per iteration ({maxIters - 2} iterations), then the final route after the same 2-opt + relocate polish for every algorithm
           </p>
         </div>
 
@@ -478,7 +448,7 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
                       fontSize="10"
                       fontFamily="monospace"
                     >
-                      {t === maxIters - 1 ? `${t}(Fin)` : `#${t}`}
+                      {t === maxIters - 1 ? 'Polished' : `#${t}`}
                     </text>
                   </g>
                 );
@@ -506,7 +476,7 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
               )}
 
               {/* Greedy NN Baseline (Horizontal Benchmark) */}
-              {visibleAlgos['Greedy NN'] && (
+              {visibleAlgos['Greedy NN'] && greedyResult && (
                 <g>
                   <line
                     x1={padLeft}
@@ -664,7 +634,7 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
                 <div className={`font-bold pb-1 mb-1 border-b flex items-center justify-between gap-3 ${
                   isDark ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-700'
                 }`}>
-                  <span>Iteration #{hoveredIdx}</span>
+                  <span>{hoveredIdx === maxIters - 1 ? 'Final route (after polish)' : `Iteration #${hoveredIdx}`}</span>
                   <span className="text-[10px] font-normal text-amber-500 font-mono">
                     Progress: {Math.round((hoveredIdx / (maxIters - 1)) * 100)}%
                   </span>
@@ -763,7 +733,9 @@ export const ConvergenceChart: React.FC<ConvergenceChartProps> = ({
                     } ${idx === milestoneTableRows.length - 1 ? (isDark ? 'bg-emerald-950/20 font-bold' : 'bg-emerald-50/50 font-bold') : ''}`}
                   >
                     <td className="py-2.5 px-3 font-semibold">
-                      #{row.iteration} {idx === milestoneTableRows.length - 1 && <span className="text-[10px] text-emerald-500 font-sans font-bold">(Final)</span>}
+                      {idx === milestoneTableRows.length - 1
+                        ? <span>Final <span className="text-[10px] text-emerald-500 font-sans font-bold">(after polish)</span></span>
+                        : `#${row.iteration}`}
                     </td>
                     <td className={`py-2.5 px-3 font-bold ${
                       isBest(row.QPSO) ? 'text-emerald-600 dark:text-emerald-400' : (isDark ? 'text-slate-300' : 'text-slate-700')

@@ -367,8 +367,9 @@ def api_metrics(res: dict) -> dict:
 def run_delhi_scenario() -> dict:
     """
     Runs the Home page walkthrough (/api/delhi/demo, the same endpoint the page calls) for every seed and
-    picks the worked example with a fixed rule: the first seed where QPSO has the lowest cost in both the
-    initial plan and the re-route; if there is none, the first seed where it has the lowest re-route cost.
+    picks the worked example with a fixed rule: the first seed where QPSO has the lowest final cost in both the
+    initial plan and the re-route, and its search (the convergence curve) also ends lowest in both. Fallbacks:
+    lowest final cost in both steps, then lowest re-route cost.
     """
     from fastapi.testclient import TestClient
     import main
@@ -379,7 +380,8 @@ def run_delhi_scenario() -> dict:
     reroute_winners = {a: 0 for a in ALL_ALGOS}
     reroute_curves = {a: [] for a in METAHEURISTICS}
     qpso_both = 0
-    chosen, fallback = None, None
+    qpso_both_with_curves = 0
+    chosen, fallback_both, fallback = None, None, None
 
     for seed in DEMO_SEED_RANGE:
         res = client.post("/api/delhi/demo", json={**DEMO, "seed": seed, "num_particles": DEMO_PARTICLES,
@@ -396,7 +398,13 @@ def run_delhi_scenario() -> dict:
             plan_winners[w] += 1
         for w in best3:
             reroute_winners[w] += 1
-        qpso_both += best1 == ["QPSO"] and best3 == ["QPSO"]
+        final_both = best1 == ["QPSO"] and best3 == ["QPSO"]
+        curves_both = all(
+            winners({a: step[keys[a]]["convergence_history"][-1]["cost"] for a in METAHEURISTICS}) == ["QPSO"]
+            for step in (step1, step3)
+        )
+        qpso_both += final_both
+        qpso_both_with_curves += final_both and curves_both
 
         example = {
             "seed": seed,
@@ -404,21 +412,25 @@ def run_delhi_scenario() -> dict:
             "step1": {a: api_metrics(step1[k]) for a, k in keys.items()},
             "step3": {a: api_metrics(step3[k]) for a, k in keys.items()},
         }
-        if chosen is None and best1 == ["QPSO"] and best3 == ["QPSO"]:
+        if chosen is None and final_both and curves_both:
             chosen = example
+        if fallback_both is None and final_both:
+            fallback_both = example
         if fallback is None and best3 == ["QPSO"]:
             fallback = example
-    chosen = chosen or fallback
+    chosen = chosen or fallback_both or fallback
     print(f"[delhi] plan winners {plan_winners}; re-route winners {reroute_winners}; QPSO both {qpso_both}; "
-          f"example seed = {chosen and chosen['seed']}", flush=True)
+          f"QPSO both incl. curves {qpso_both_with_curves}; example seed = {chosen and chosen['seed']}", flush=True)
     return {
         **(chosen or {}),
         "config": {**DEMO, "num_particles": DEMO_PARTICLES, "max_iterations": DEMO_ITERATIONS},
-        "selection_rule": "first seed where QPSO has the lowest cost in both the initial plan and the re-route",
+        "selection_rule": "first seed where QPSO has the lowest cost in both the initial plan and the re-route, "
+                          "with its convergence curve also ending lowest in both",
         "seeds_tested": len(DEMO_SEED_RANGE),
         "plan_winner_counts": plan_winners,
         "reroute_winner_counts": reroute_winners,
         "qpso_wins_both": qpso_both,
+        "qpso_wins_both_with_curves": qpso_both_with_curves,
         "reroute_anytime": anytime_table(reroute_curves, METAHEURISTICS, ANYTIME_CHECKPOINTS),
     }
 

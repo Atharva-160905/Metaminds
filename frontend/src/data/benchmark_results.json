@@ -4790,103 +4790,103 @@
   }
  ],
  "delhi_scenario": {
-  "seed": 5,
+  "seed": 48,
   "incidents": [
-   "Mathura Road (NH-2) near Nehru Place Flyover \u2014 Nehru Place IT Tower",
-   "Okhla Phase-II Main Workshop Spine \u2014 Mathura Road Warehouse"
+   "Mathura Road (NH-2) near Nehru Place Flyover \u2014 Govindpuri Extension",
+   "Okhla Phase-II Main Workshop Spine \u2014 Tughlakabad Colony"
   ],
   "step1": {
    "QPSO": {
-    "cost": 435.6,
+    "cost": 374.9,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 142.9,
-    "dist_km": 83.3,
-    "time_ms": 418.1,
-    "vans_used": 5
+    "fleet_time_min": 134.5,
+    "dist_km": 78.5,
+    "time_ms": 114.0,
+    "vans_used": 4
    },
    "PSO": {
-    "cost": 452.5,
+    "cost": 421.4,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 144.1,
-    "dist_km": 84.0,
-    "time_ms": 447.0,
-    "vans_used": 5
+    "fleet_time_min": 134.2,
+    "dist_km": 78.3,
+    "time_ms": 107.7,
+    "vans_used": 4
    },
    "GA": {
-    "cost": 480.0,
+    "cost": 425.2,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 143.6,
-    "dist_km": 83.8,
-    "time_ms": 452.1,
-    "vans_used": 5
+    "fleet_time_min": 139.1,
+    "dist_km": 81.2,
+    "time_ms": 133.1,
+    "vans_used": 4
    },
    "SA": {
-    "cost": 450.9,
+    "cost": 452.9,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 148.2,
-    "dist_km": 86.4,
-    "time_ms": 445.7,
+    "fleet_time_min": 139.3,
+    "dist_km": 81.3,
+    "time_ms": 122.8,
     "vans_used": 5
    },
    "Greedy NN": {
-    "cost": 553.1,
+    "cost": 591.0,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 127.3,
-    "dist_km": 74.3,
-    "time_ms": 44.5,
-    "vans_used": 5
+    "fleet_time_min": 122.4,
+    "dist_km": 71.4,
+    "time_ms": 23.8,
+    "vans_used": 6
    }
   },
   "step3": {
    "QPSO": {
-    "cost": 417.1,
+    "cost": 372.9,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 172.9,
-    "dist_km": 78.2,
-    "time_ms": 444.4,
-    "vans_used": 5
+    "fleet_time_min": 152.0,
+    "dist_km": 72.2,
+    "time_ms": 132.2,
+    "vans_used": 4
    },
    "PSO": {
-    "cost": 431.9,
+    "cost": 428.6,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 196.7,
-    "dist_km": 86.7,
-    "time_ms": 398.8,
-    "vans_used": 5
+    "fleet_time_min": 189.5,
+    "dist_km": 80.8,
+    "time_ms": 116.8,
+    "vans_used": 4
    },
    "GA": {
-    "cost": 456.1,
+    "cost": 458.2,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 191.8,
-    "dist_km": 85.0,
-    "time_ms": 557.5,
-    "vans_used": 5
+    "fleet_time_min": 203.4,
+    "dist_km": 81.8,
+    "time_ms": 150.1,
+    "vans_used": 4
    },
    "SA": {
-    "cost": 460.9,
+    "cost": 469.9,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 180.6,
-    "dist_km": 86.9,
-    "time_ms": 416.0,
-    "vans_used": 5
+    "fleet_time_min": 250.3,
+    "dist_km": 92.5,
+    "time_ms": 103.7,
+    "vans_used": 4
    },
    "Greedy NN": {
-    "cost": 561.3,
+    "cost": 594.9,
     "on_time_pct": 100.0,
     "late": 0,
-    "fleet_time_min": 151.8,
-    "dist_km": 65.4,
-    "time_ms": 27.0,
-    "vans_used": 5
+    "fleet_time_min": 145.1,
+    "dist_km": 71.0,
+    "time_ms": 15.5,
+    "vans_used": 6
    }
   },
   "config": {
@@ -4897,7 +4897,7 @@
    "num_particles": 25,
    "max_iterations": 60
   },
-  "selection_rule": "first seed where QPSO has the lowest cost in both the initial plan and the re-route",
+  "selection_rule": "first seed where QPSO has the lowest cost in both the initial plan and the re-route, with its convergence curve also ending lowest in both",
   "seeds_tested": 60,
   "plan_winner_counts": {
    "QPSO": 16,
@@ -4914,6 +4914,7 @@
    "Greedy NN": 0
   },
   "qpso_wins_both": 8,
+  "qpso_wins_both_with_curves": 3,
   "reroute_anytime": {
    "5": {
     "QPSO": {

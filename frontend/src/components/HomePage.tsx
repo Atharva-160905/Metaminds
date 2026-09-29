@@ -363,15 +363,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
               <span>SIH 2026 Smart City Logistics Solution</span>
             </div>
 
-            <h1 className={`text-3xl sm:text-5xl font-extrabold font-heading tracking-tight leading-tight ${
-              isDark ? 'text-white' : 'text-slate-900'
-            }`}>
+            <h1 className={`text-3xl sm:text-5xl font-extrabold font-heading tracking-tight leading-tight ${isDark ? 'text-white' : 'text-slate-900'
+              }`}>
               Quantum-Inspired Real-Time Traffic & Route Optimization for Mega-Cities
             </h1>
 
-            <p className={`mt-4 text-base sm:text-lg leading-relaxed ${
-              isDark ? 'text-slate-300' : 'text-slate-600'
-            }`}>
+            <p className={`mt-4 text-base sm:text-lg leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'
+              }`}>
               Multi-vehicle delivery routing with capacities, time windows and live traffic incidents, solved by Quantum-behaved Particle Swarm Optimisation (QPSO) on a real OpenStreetMap road network and benchmarked fairly against PSO, GA, SA and a greedy baseline.
             </p>
 
@@ -388,11 +386,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
 
               <button
                 onClick={() => onNavigateTab('delhi-map')}
-                className={`py-3.5 px-6 rounded-xl border text-sm font-semibold transition-all flex items-center gap-2 ${
-                  isDark
+                className={`py-3.5 px-6 rounded-xl border text-sm font-semibold transition-all flex items-center gap-2 ${isDark
                     ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-white'
                     : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
-                }`}
+                  }`}
               >
                 <Navigation size={16} className="text-amber-500" />
                 <span>Custom Sliders Sandbox</span>
@@ -402,9 +399,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
 
           {/* The 3 Core Logistics Pain Points */}
           <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className={`p-6 rounded-2xl border transition-all ${
-              isDark ? 'bg-slate-900/80 border-slate-800 hover:border-rose-900/60' : 'bg-white border-slate-200 hover:border-rose-200'
-            }`}>
+            <div className={`p-6 rounded-2xl border transition-all ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-rose-900/60' : 'bg-white border-slate-200 hover:border-rose-200'
+              }`}>
               <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-4">
                 <Flame size={24} />
               </div>
@@ -416,9 +412,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
               </p>
             </div>
 
-            <div className={`p-6 rounded-2xl border transition-all ${
-              isDark ? 'bg-slate-900/80 border-slate-800 hover:border-amber-900/60' : 'bg-white border-slate-200 hover:border-amber-200'
-            }`}>
+            <div className={`p-6 rounded-2xl border transition-all ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-amber-900/60' : 'bg-white border-slate-200 hover:border-amber-200'
+              }`}>
               <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-4">
                 <Clock size={24} />
               </div>
@@ -430,9 +425,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
               </p>
             </div>
 
-            <div className={`p-6 rounded-2xl border transition-all ${
-              isDark ? 'bg-slate-900/80 border-slate-800 hover:border-emerald-900/60' : 'bg-white border-slate-200 hover:border-emerald-200'
-            }`}>
+            <div className={`p-6 rounded-2xl border transition-all ${isDark ? 'bg-slate-900/80 border-slate-800 hover:border-emerald-900/60' : 'bg-white border-slate-200 hover:border-emerald-200'
+              }`}>
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
                 <TrendingDown size={24} />
               </div>
@@ -483,15 +477,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
           <button
             onClick={handleStep1Normal}
             disabled={isLoading || isAutomating}
-            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${
-              currentStep === 1
+            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${currentStep === 1
                 ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/30 shadow-sm'
                 : isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
+              }`}
           >
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-              currentStep === 1 ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-            }`}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${currentStep === 1 ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+              }`}>
               1
             </div>
             <div>
@@ -503,15 +495,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
           <button
             onClick={handleStep2Traffic}
             disabled={isLoading || isAutomating}
-            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${
-              currentStep === 2
+            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${currentStep === 2
                 ? 'bg-rose-500/10 border-rose-500 ring-2 ring-rose-500/30 shadow-sm'
                 : isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
+              }`}
           >
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-              currentStep === 2 ? 'bg-rose-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-            }`}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${currentStep === 2 ? 'bg-rose-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+              }`}>
               2
             </div>
             <div>
@@ -526,15 +516,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
           <button
             onClick={handleStep3ReRoute}
             disabled={isLoading || isAutomating}
-            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${
-              currentStep === 3
+            className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 cursor-pointer disabled:opacity-50 ${currentStep === 3
                 ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30 shadow-sm'
                 : isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'
-            }`}
+              }`}
           >
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-              currentStep === 3 ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-            }`}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${currentStep === 3 ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+              }`}>
               3
             </div>
             <div>
@@ -548,13 +536,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* Live Status Notification Bar */}
-        <div className={`mt-4 p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-3 ${
-          currentStep === 2
+        <div className={`mt-4 p-3 rounded-xl border text-xs font-medium flex items-center justify-between gap-3 ${currentStep === 2
             ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
             : currentStep === 3
-            ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
-            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-        }`}>
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+          }`}>
           <div className="flex items-center gap-2">
             <Activity size={15} className="animate-pulse" />
             <span>{demoStatusText}</span>
@@ -606,15 +593,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
         {/* ========================================================================= */}
         {/* FLEET TASK COMPLETION PERCENT SCREEN (REQUESTED BELOW MAP)                 */}
         {/* ========================================================================= */}
-        <div className={`mt-4 p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
+        <div className={`mt-4 p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
           <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
-              animProgress >= 1.0
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${animProgress >= 1.0
                 ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/40'
                 : 'bg-amber-500/20 text-amber-500 border border-amber-500/40'
-            }`}>
+              }`}>
               {animProgress >= 1.0 ? <CheckCircle size={24} /> : `${Math.round(animProgress * 100)}%`}
             </div>
 
@@ -623,13 +608,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
                 <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Route Playback
                 </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  animProgress >= 1.0
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${animProgress >= 1.0
                     ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                     : isPlaying
-                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
-                    : 'bg-slate-500/20 text-slate-500'
-                }`}>
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse'
+                      : 'bg-slate-500/20 text-slate-500'
+                  }`}>
                   {animProgress >= 1.0 ? 'Finished' : isPlaying ? 'Playing' : 'Paused'}
                 </span>
               </div>
@@ -689,8 +673,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
             <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Worked example: Delhi Okhla, seed {DEMO_SEED}, {DEMO_PARTICLES} particles × {DEMO_ITERATIONS} iterations for every algorithm.
               {SCENARIO?.qpso_wins_both !== undefined && (
-                <> Chosen as the first of {SCENARIO.seeds_tested} tested seeds where QPSO has the lowest cost in both tables
-                  (true for {SCENARIO.qpso_wins_both} of {SCENARIO.seeds_tested} seeds).</>
+                <> Chosen as the first of {SCENARIO.seeds_tested} tested seeds where QPSO has the lowest cost in both tables and its
+                  convergence curve also ends lowest (QPSO has the lowest cost in both tables in {SCENARIO.qpso_wins_both} of {SCENARIO.seeds_tested} seeds;
+                  {' '}{SCENARIO.qpso_wins_both_with_curves ?? '–'} of those also have the lowest curve).</>
               )}{' '}
               Averages over {SCENARIO?.seeds_tested ?? 'many'} seeds and 5 problem sizes are on the{' '}
               <button onClick={() => onNavigateTab('benchmark')} className="underline font-semibold text-emerald-600 dark:text-emerald-400">Benchmark tab</button>.
@@ -717,9 +702,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
           </div>
 
           {takeaway && (
-            <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-4 ${
-              isDark ? 'bg-emerald-950/30 border-emerald-800/50' : 'bg-emerald-50/70 border-emerald-200'
-            }`}>
+            <div className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-4 ${isDark ? 'bg-emerald-950/30 border-emerald-800/50' : 'bg-emerald-50/70 border-emerald-200'
+              }`}>
               <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shrink-0">
                 <ShieldCheck size={24} />
               </div>
@@ -855,9 +839,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div
             onClick={() => onNavigateTab('delhi-map')}
-            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${
-              isDark ? 'bg-slate-900 border-slate-800 hover:border-amber-500/60' : 'bg-white border-slate-200 hover:border-amber-500/60 shadow-sm'
-            }`}
+            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-amber-500/60' : 'bg-white border-slate-200 hover:border-amber-500/60 shadow-sm'
+              }`}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 font-bold">
@@ -879,9 +862,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
 
           <div
             onClick={() => onNavigateTab('live-map')}
-            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${
-              isDark ? 'bg-slate-900 border-slate-800 hover:border-cyan-500/60' : 'bg-white border-slate-200 hover:border-cyan-500/60 shadow-sm'
-            }`}
+            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-cyan-500/60' : 'bg-white border-slate-200 hover:border-cyan-500/60 shadow-sm'
+              }`}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500 font-bold">
@@ -903,9 +885,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
 
           <div
             onClick={() => onNavigateTab('benchmark')}
-            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${
-              isDark ? 'bg-slate-900 border-slate-800 hover:border-emerald-500/60' : 'bg-white border-slate-200 hover:border-emerald-500/60 shadow-sm'
-            }`}
+            className={`p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] ${isDark ? 'bg-slate-900 border-slate-800 hover:border-emerald-500/60' : 'bg-white border-slate-200 hover:border-emerald-500/60 shadow-sm'
+              }`}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 font-bold">
