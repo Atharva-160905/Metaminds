@@ -43,6 +43,9 @@ from optimizers.sa import SAOptimizer
 from optimizers.greedy import GreedyNearestNeighbourOptimizer
 
 OUT_FILE = os.path.join(ROOT, "frontend", "src", "data", "benchmark_results.json")
+# Full recorded response of the Home page example. The page plays this file back instead of recomputing it, because
+# the exact result depends on numpy's sort tie-breaking, which differs between numpy versions and CPUs.
+DEMO_RUN_FILE = os.path.join(ROOT, "frontend", "public", "data", "delhi_demo_run.json")
 
 SIZES = [20, 50, 100, 250, 500]
 SEEDS = list(range(1, 11))
@@ -364,6 +367,12 @@ def api_metrics(res: dict) -> dict:
     }
 
 
+def save_demo_run(demo: dict) -> None:
+    with open(DEMO_RUN_FILE, "w", encoding="utf-8") as f:
+        json.dump(demo, f, separators=(",", ":"))
+    print(f"Saved the recorded Home page run to {DEMO_RUN_FILE}", flush=True)
+
+
 def run_delhi_scenario() -> dict:
     """
     Runs the Home page walkthrough (/api/delhi/demo, the same endpoint the page calls) for every seed and
@@ -382,6 +391,7 @@ def run_delhi_scenario() -> dict:
     qpso_both = 0
     qpso_both_with_curves = 0
     chosen, fallback_both, fallback = None, None, None
+    runs = {}  # seed -> full demo response, for the chosen example
 
     for seed in DEMO_SEED_RANGE:
         res = client.post("/api/delhi/demo", json={**DEMO, "seed": seed, "num_particles": DEMO_PARTICLES,
@@ -414,11 +424,16 @@ def run_delhi_scenario() -> dict:
         }
         if chosen is None and final_both and curves_both:
             chosen = example
+            runs[seed] = demo
         if fallback_both is None and final_both:
             fallback_both = example
+            runs[seed] = demo
         if fallback is None and best3 == ["QPSO"]:
             fallback = example
+            runs[seed] = demo
     chosen = chosen or fallback_both or fallback
+    if chosen:
+        save_demo_run(runs[chosen["seed"]])
     print(f"[delhi] plan winners {plan_winners}; re-route winners {reroute_winners}; QPSO both {qpso_both}; "
           f"QPSO both incl. curves {qpso_both_with_curves}; example seed = {chosen and chosen['seed']}", flush=True)
     return {

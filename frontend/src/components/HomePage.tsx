@@ -54,19 +54,31 @@ const DEMO_ITERATIONS: number = SCENARIO?.config?.max_iterations ?? 60;
 const DEMO_PARTICLES: number = SCENARIO?.config?.num_particles ?? 25;
 const DEMO_PROBLEM = { num_deliveries: 40, num_riders: 6, rider_capacity: 20, objective: 'balanced' as const };
 
-// The whole walkthrough (plan -> incidents -> re-route) is computed once by the backend on a private problem.
-// The steps only reveal parts of that one result, so clicks, other tabs and other users cannot change it.
+// The whole walkthrough (plan -> incidents -> re-route) is one recorded run of /api/delhi/demo, saved by
+// scripts/run_real_benchmarks.py to public/data/delhi_demo_run.json. The page plays that recording back rather than
+// recomputing it, because the exact result depends on numpy's sort tie-breaking, which differs between numpy versions
+// and CPUs (the deployed server would otherwise compute a different run). The steps only reveal parts of that one result.
 type DemoRun = Awaited<ReturnType<typeof api.runDelhiDemo>>;
+const demoParams = {
+  ...DEMO_PROBLEM,
+  seed: DEMO_SEED,
+  num_particles: DEMO_PARTICLES,
+  max_iterations: DEMO_ITERATIONS,
+  incident_count: 2
+};
 let demoLoad: Promise<DemoRun> | null = null;
 const loadDemo = () => {
   if (!demoLoad) {
-    demoLoad = api.runDelhiDemo({
-      ...DEMO_PROBLEM,
-      seed: DEMO_SEED,
-      num_particles: DEMO_PARTICLES,
-      max_iterations: DEMO_ITERATIONS,
-      incident_count: 2
-    });
+    demoLoad = (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}data/delhi_demo_run.json`);
+        if (res.ok) {
+          const recorded: DemoRun = await res.json();
+          if (recorded?.config?.seed === DEMO_SEED) return recorded;
+        }
+      } catch { /* fall back to computing it live */ }
+      return api.runDelhiDemo(demoParams);
+    })();
     demoLoad.catch(() => { demoLoad = null; }); // allow a retry after a failed request
   }
   return demoLoad;

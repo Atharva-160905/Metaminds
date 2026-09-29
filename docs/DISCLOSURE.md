@@ -16,9 +16,11 @@
 - Optimality gaps use an exact solver that shares the same cost model.
 
 ## 3. The Home page example
-The Home page walks through one Delhi Okhla scenario (40 stops, 6 vans, 2 incidents). The whole walkthrough is computed
-by one backend call (`/api/delhi/demo`) on a private problem and cached, so it gives the same routes and costs on every
-visit, whatever is clicked and however many people use the site at once.
+The Home page walks through one Delhi Okhla scenario (40 stops, 6 vans, 2 incidents). The whole walkthrough is one run
+of the backend endpoint `/api/delhi/demo`, recorded by the script into `frontend/public/data/delhi_demo_run.json`, and the
+page plays that recording back. It is not recomputed on the server because the exact result depends on how numpy breaks
+ties when sorting, which differs between numpy versions and CPUs; a different machine can produce a different (equally
+valid) run. Rerunning the script on the pinned library versions reproduces the recording.
 The script runs that same endpoint for 60 seeds and picks the worked example with a fixed rule: the first seed where
 QPSO has the lowest final cost in both the initial plan and the re-route, and its convergence curve (the search cost
 before the shared route polish) also ends lowest in both. It is labelled as an example, and the page states how many of
