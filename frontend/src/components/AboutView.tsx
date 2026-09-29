@@ -18,7 +18,7 @@ export const AboutView: React.FC = () => {
           </div>
           <div>
             <h1 className={`text-2xl font-black font-heading ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              QuantaRoute: Project Architecture & Foundations
+              Pheri: Project Architecture & Foundations
             </h1>
             <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               Smart India Hackathon (SIH 2026) • Transportation & Logistics Track

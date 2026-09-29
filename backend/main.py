@@ -31,7 +31,7 @@ from optimizers.sa import SAOptimizer
 from optimizers.greedy import GreedyNearestNeighbourOptimizer
 
 app = FastAPI(
-    title="QuantaRoute API",
+    title="Pheri API",
     description="Quantum-Inspired Metaheuristic Traffic Route Optimization API (SIH 2026)",
     version="1.0.0"
 )

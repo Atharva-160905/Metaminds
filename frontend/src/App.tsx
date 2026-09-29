@@ -387,7 +387,7 @@ const MainApp: React.FC = () => {
         isDark ? 'bg-[#0B132B] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
       }`}>
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span className="font-medium">QuantaRoute • SIH 2026 Prototype Demonstration</span>
+          <span className="font-medium">Pheri • SIH 2026 Prototype Demonstration</span>
           <span className={`font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
             Deterministic Evaluation Suite • Real OpenStreetMap Drive Topology
           </span>

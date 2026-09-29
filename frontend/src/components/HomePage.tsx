@@ -372,12 +372,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
           <div className="text-center max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 mb-4">
               <Sparkles size={14} className="text-emerald-500 animate-spin" />
-              <span>SIH 2026 Smart City Logistics Solution</span>
+              <span>Pheri • SIH 2026 Smart City Logistics Solution</span>
             </div>
 
             <h1 className={`text-3xl sm:text-5xl font-extrabold font-heading tracking-tight leading-tight ${isDark ? 'text-white' : 'text-slate-900'
               }`}>
-              Quantum-Inspired Real-Time Traffic & Route Optimization for Mega-Cities
+              Pheri: Quantum-Inspired Real-Time Traffic & Route Optimization for Mega-Cities
             </h1>
 
             <p className={`mt-4 text-base sm:text-lg leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'

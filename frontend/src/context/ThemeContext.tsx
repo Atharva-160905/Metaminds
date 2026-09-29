@@ -17,14 +17,14 @@ const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Default to Light mode per user preference
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('quantaroute-theme') as Theme;
+    const saved = (localStorage.getItem('pheri-theme') || localStorage.getItem('quantaroute-theme')) as Theme;
     return saved === 'dark' ? 'dark' : 'light';
   });
 
   const toggleTheme = () => {
     setTheme(prev => {
       const next = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem('quantaroute-theme', next);
+      localStorage.setItem('pheri-theme', next);
       return next;
     });
   };
@@ -36,7 +36,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('quantaroute-theme', theme);
+    localStorage.setItem('pheri-theme', theme);
   }, [theme]);
 
   return (

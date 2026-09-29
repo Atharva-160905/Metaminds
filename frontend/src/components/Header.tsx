@@ -29,16 +29,13 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-3 cursor-pointer select-none"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <Cpu size={22} className="text-slate-950 stroke-[2.5]" />
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}data/${isDark ? 'pheri-logo-for-black-bg.svg' : 'pheri-logo-for-white-bg.svg'}`}
+              alt="Pheri"
+              className="h-10 w-auto object-contain"
+            />
             <div>
               <div className="flex items-center gap-2">
-                <span className={`font-heading font-extrabold text-lg tracking-tight ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}>
-                  QuantaRoute
-                </span>
                 <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
                   SIH 2026
                 </span>
