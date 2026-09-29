@@ -241,5 +241,25 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to re-optimize Delhi routes');
     return res.json();
+  },
+
+  // Home page walkthrough in one call on a private, cached problem: identical result on every call
+  async runDelhiDemo(params: {
+    num_deliveries: number;
+    num_riders: number;
+    rider_capacity: number;
+    objective: 'time' | 'distance' | 'balanced';
+    seed: number;
+    num_particles: number;
+    max_iterations: number;
+    incident_count: number;
+  }): Promise<{ config: any; step1: OptimizationResponse; traffic: { incidents: any[] }; step3: ReoptimizeResponse }> {
+    const res = await fetch(`${API_BASE}/delhi/demo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to load the Delhi demo walkthrough');
+    return res.json();
   }
 };

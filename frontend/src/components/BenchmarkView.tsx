@@ -13,19 +13,12 @@ import {
   BarChart2,
   CheckCircle,
   Flame,
-  Play,
-  Loader2,
   Target,
   Swords,
   TrendingDown,
-  Info,
-  CheckCircle2,
-  MinusCircle,
-  XCircle,
   MapPin,
   FileCode2
 } from 'lucide-react';
-import { api } from '../services/api';
 import { benchmarkData } from '../data/benchmarkData';
 import { ALGOS, METAHEURISTICS, AlgoKey, algoColor } from '../data/algorithms';
 
@@ -44,14 +37,32 @@ interface Tier {
   pipeline_best: string;
   qpso_vs_pso: { search_wins: number; final_wins: number; seeds: number; search_diff_pct: number; final_diff_pct: number };
   curves: Record<string, number[]>;
+  anytime?: Anytime;
+}
+// checkpoint ("5", "10", "20", "final") -> algo -> mean gap (%) to the seed's best final cost, and seeds led
+type Anytime = Record<string, Record<string, { gap_mean: number; wins: number }>>;
+interface ZoneRow {
+  size: number;
+  zones: number;
+  riders: number;
+  iterations_per_zone: number;
+  search: Record<string, { cost_mean: number; wins: number }>;
+  final: Record<string, { cost_mean: number; wins: number; on_time_pct: number; time_ms: number }>;
 }
 interface ExactRow { size: number; seeds: number; exact_ms_mean: number; algos: Record<string, { gap_mean: number; gap_max: number; optimal_hits: number }>; }
 interface BenchmarkFile {
   meta: { generated_at: string; seeds: number[]; population: number; iterations_rule: string; riders_rule: string; capacity_kg: number; objective: string; command: string; runtime_s?: number };
   conditions: { congested: Tier[]; clear: Tier[] };
+  zones?: { congested: ZoneRow[]; clear: ZoneRow[] };
   exact: ExactRow[];
-  delhi_scenario: { seed?: number; seeds_tested: number; reroute_winner_counts: Record<string, number> };
+  delhi_scenario: {
+    seed?: number; seeds_tested: number; reroute_winner_counts: Record<string, number>; reroute_anytime?: Anytime;
+    plan_winner_counts?: Record<string, number>; qpso_wins_both?: number; selection_rule?: string;
+  };
 }
+
+const CHECKPOINTS = ['5', '10', '20', 'final'] as const;
+const checkpointLabel = (c: string) => (c === 'final' ? 'End of run' : `After ${c} it.`);
 
 const data = benchmarkData as BenchmarkFile;
 
@@ -61,14 +72,6 @@ const fmtK = (n: number) => (Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(n >= 10
 
 // Lowest value, counting exact ties (e.g. a swarm that kept the greedy start) as shared bests
 const isBest = (v: number, all: number[]) => v <= Math.min(...all) * (1 + 1e-6) + 1e-9;
-
-type Verdict = 'holds' | 'mixed' | 'no';
-const verdictFor = (t: Tier): Verdict => {
-  const h = t.qpso_vs_pso;
-  if (h.search_diff_pct > 0 && h.search_wins >= Math.ceil(h.seeds * 0.6)) return 'holds';
-  if (h.search_diff_pct < 0 && h.search_wins <= Math.floor(h.seeds * 0.4)) return 'no';
-  return 'mixed';
-};
 
 export const BenchmarkView: React.FC<any> = () => {
   const { theme } = useTheme();
@@ -94,9 +97,8 @@ const BenchmarkStudy: React.FC = () => {
   const [condition, setCondition] = useState<'congested' | 'clear'>('congested');
   const tiers = data.conditions[condition];
   const [chartSize, setChartSize] = useState<number>(tiers[tiers.length - 1]?.size ?? 500);
-  const [live, setLive] = useState<any[] | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [liveError, setLiveError] = useState<string | null>(null);
+  const [checkpoint, setCheckpoint] = useState<string>('10');
+  const [zoneMode, setZoneMode] = useState<'search' | 'final'>('search');
 
   // ---------- Theme tokens ----------
   const card = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm';
@@ -109,17 +111,58 @@ const BenchmarkStudy: React.FC = () => {
 
   // ---------- Aggregates (all computed from the JSON) ----------
   const allTiers = [...data.conditions.congested, ...data.conditions.clear];
-  const totalRuns = allTiers.reduce((s, t) => s + t.qpso_vs_pso.seeds, 0);
-  const searchWins = allTiers.reduce((s, t) => s + t.qpso_vs_pso.search_wins, 0);
-  const finalWins = allTiers.reduce((s, t) => s + t.qpso_vs_pso.final_wins, 0);
   const qpsoExact = data.exact.map(r => r.algos['QPSO']);
   const qpsoGap = qpsoExact.reduce((s, a) => s + a.gap_mean, 0) / Math.max(1, qpsoExact.length);
   const qpsoHits = qpsoExact.reduce((s, a) => s + a.optimal_hits, 0);
   const exactRuns = data.exact.reduce((s, r) => s + r.seeds, 0);
-  const searchBestCounts = METAHEURISTICS.map(a => ({
-    key: a.key,
-    n: allTiers.filter(t => t.search_best === a.key).length
-  })).sort((x, y) => y.n - x.n);
+
+  // ---------- Overview: who has the lowest cost where (win counts over all seeds and both traffic conditions) ----------
+  type WinRow = { label: string; sub: string; wins: Record<string, number>; runs: number };
+  const seedCount = data.meta.seeds.length;
+  const addWins = (acc: Record<string, number>, src: Record<string, { wins: number }> | undefined) => {
+    METAHEURISTICS.forEach(a => { acc[a.key] = (acc[a.key] ?? 0) + (src?.[a.key]?.wins ?? 0); });
+    return acc;
+  };
+  const tierRow = (label: string, sub: string, sizes: number[]): WinRow => {
+    const ts = allTiers.filter(t => sizes.includes(t.size));
+    return { label, sub, wins: ts.reduce((acc, t) => addWins(acc, t.search), {} as Record<string, number>), runs: ts.length * seedCount };
+  };
+  const zoneRows = data.zones ? [...data.zones.congested, ...data.zones.clear] : [];
+  const delhi = data.delhi_scenario;
+  const scoreRows: WinRow[] = [
+    tierRow('Small orders', '20 stops', [20]),
+    tierRow('Medium orders', '50 and 100 stops, solved as one problem', [50, 100]),
+    tierRow('Large orders', '250 and 500 stops, solved as one problem', [250, 500]),
+    ...(zoneRows.length ? [{
+      label: 'Large orders split into zones',
+      sub: '100 to 500 stops, solved as ~20-stop zones',
+      wins: zoneRows.reduce((acc, z) => addWins(acc, z.search), {} as Record<string, number>),
+      runs: zoneRows.length * seedCount
+    }] : []),
+    ...(allTiers[0]?.anytime ? [{
+      label: 'Answer needed fast',
+      sub: 'cost after only 10 iterations, all sizes',
+      wins: allTiers.reduce((acc, t) => addWins(acc, t.anytime?.['10']), {} as Record<string, number>),
+      runs: allTiers.length * seedCount
+    }] : []),
+    ...(delhi.reroute_anytime?.['10'] ? [{
+      label: 'Quick re-route after incidents',
+      sub: `Delhi Okhla, cost after 10 re-route iterations, ${delhi.seeds_tested} scenarios`,
+      wins: Object.fromEntries(METAHEURISTICS.map(a => [a.key, delhi.reroute_anytime!['10'][a.key]?.wins ?? 0])),
+      runs: delhi.seeds_tested
+    }] : []),
+    {
+      label: 'Re-routing after traffic incidents',
+      sub: `Delhi Okhla, 40 stops, ${delhi.seeds_tested} scenarios (final routes)`,
+      wins: Object.fromEntries(METAHEURISTICS.map(a => [a.key, delhi.reroute_winner_counts[a.key] ?? 0])),
+      runs: delhi.seeds_tested
+    }
+  ];
+  const leader = (r: WinRow) => METAHEURISTICS.reduce((best, a) => (r.wins[a.key] > r.wins[best] ? a.key : best), METAHEURISTICS[0].key as string);
+  const qpsoLeads = scoreRows.filter(r => leader(r) === 'QPSO');
+  const othersLead = scoreRows.filter(r => leader(r) !== 'QPSO');
+  const zoneRow = scoreRows.find(r => r.label.startsWith('Large orders split'));
+  const smallRow = scoreRows[0];
 
   const chartTier = tiers.find(t => t.size === chartSize) ?? tiers[tiers.length - 1];
   const chartRows = useMemo(() => {
@@ -131,19 +174,6 @@ const BenchmarkStudy: React.FC = () => {
       return row;
     });
   }, [chartTier]);
-
-  const handleLiveRun = async () => {
-    setIsRunning(true);
-    setLiveError(null);
-    try {
-      const resp = await api.runBenchmark([20, 50], condition);
-      setLive(resp.benchmark_results ?? []);
-    } catch (err: any) {
-      setLiveError('Backend not reachable — start the FastAPI server to run a live spot-check.');
-    } finally {
-      setIsRunning(false);
-    }
-  };
 
   const Chip: React.FC<{ algo: AlgoKey }> = ({ algo }) => (
     <span className="inline-flex items-center gap-1.5">
@@ -174,29 +204,132 @@ const BenchmarkStudy: React.FC = () => {
     <div className="space-y-6">
       {/* ---------- Header ---------- */}
       <div className={`rounded-2xl border p-6 ${card}`}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-sky-600 text-white shadow-md">
-              <BarChart2 size={24} />
-            </div>
-            <div>
-              <h2 className={`text-xl sm:text-2xl font-bold font-heading ${ink}`}>Benchmark Study: QPSO vs Classical Metaheuristics</h2>
-              <p className={`text-sm mt-1 max-w-3xl ${ink2}`}>
-                {data.meta.seeds.length} seeds × {tiers.length} problem sizes × 2 traffic conditions. Every algorithm gets the same instances,
-                population ({data.meta.population}), iteration budget, decoder and local search.
-              </p>
-              <p className={`text-[11px] mt-1.5 font-mono flex items-center gap-1.5 ${muted}`}>
-                <FileCode2 size={12} />
-                Generated by <span className={ink2}>{data.meta.command}</span> on {generated.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            </div>
+        <div className="flex items-start gap-4">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-sky-600 text-white shadow-md">
+            <BarChart2 size={24} />
           </div>
+          <div className="min-w-0">
+            <h2 className={`text-xl sm:text-2xl font-bold font-heading ${ink}`}>Benchmark results: QPSO vs PSO, GA and SA</h2>
+            <p className={`text-sm mt-1 max-w-3xl ${ink2}`}>
+              Recorded test results. Every algorithm solved the same problems with the same seeds, population
+              ({data.meta.population}), iteration budget and route polishing. {seedCount} seeds per setting, 2 traffic conditions.
+            </p>
+            <p className={`text-[11px] mt-1.5 font-mono flex flex-wrap items-center gap-x-1.5 break-all ${muted}`}>
+              <FileCode2 size={12} />
+              Generated by <span className={ink2}>{data.meta.command}</span> on {generated.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+      </div>
 
-          <div className={`flex p-1 rounded-xl border text-xs self-start lg:self-auto ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+      {/* ---------- Where QPSO is strongest ---------- */}
+      <div>
+        <h3 className={`font-heading font-bold text-base mb-3 ${ink}`}>Where QPSO is strongest</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {zoneRow && (
+            <div className={`rounded-2xl border p-5 ${card}`}>
+              <div className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>Orders split into zones</div>
+              <div className={`text-4xl font-black font-heading mt-2 ${ink}`}>
+                {zoneRow.wins['QPSO']}<span className={`text-xl font-bold ${muted}`}> / {zoneRow.runs}</span>
+              </div>
+              <div className={`text-xs mt-1 ${ink2}`}>runs where QPSO found the lowest cost, 100 to 500 stops solved as ~20-stop zones</div>
+            </div>
+          )}
+          <div className={`rounded-2xl border p-5 ${card}`}>
+            <div className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>Small orders (20 stops)</div>
+            <div className={`text-4xl font-black font-heading mt-2 ${ink}`}>
+              {smallRow.wins['QPSO']}<span className={`text-xl font-bold ${muted}`}> / {smallRow.runs}</span>
+            </div>
+            <div className={`text-xs mt-1 ${ink2}`}>runs where QPSO found the lowest cost of the four optimizers</div>
+          </div>
+          <div className={`rounded-2xl border p-5 ${card}`}>
+            <div className={`text-[11px] font-bold uppercase tracking-wider ${muted}`}>Distance from the true optimum</div>
+            <div className={`text-4xl font-black font-heading mt-2 ${ink}`}>
+              {qpsoGap.toFixed(1)}<span className={`text-xl font-bold ${muted}`}>%</span>
+            </div>
+            <div className={`text-xs mt-1 ${ink2}`}>QPSO's average gap on 6–8 stop problems solved exactly; optimal in {qpsoHits} of {exactRuns}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- Who wins where ---------- */}
+      <div className={`rounded-2xl border overflow-hidden ${card}`}>
+        <div className={`px-5 py-4 border-b flex flex-col md:flex-row md:items-end justify-between gap-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div>
+            <h3 className={`font-heading font-bold text-base ${ink}`}>Who finds the lowest cost, by situation</h3>
+            <p className={`text-xs mt-0.5 ${muted}`}>
+              Share of runs each algorithm won (lowest route cost). Optimizers compared on their own, before the shared route polish,
+              except the re-routing row, which compares final routes.
+            </p>
+          </div>
+          <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs ${ink2}`}>
+            {METAHEURISTICS.map(a => <Chip key={a.key} algo={a.key} />)}
+          </div>
+        </div>
+        <div className={`divide-y ${divide}`}>
+          {scoreRows.map(r => {
+            const total = METAHEURISTICS.reduce((sum, a) => sum + (r.wins[a.key] ?? 0), 0) || 1;
+            const top = leader(r);
+            return (
+              <div key={r.label} className="px-5 py-4 grid grid-cols-1 md:grid-cols-[210px_1fr_170px] gap-x-6 gap-y-2 items-center">
+                <div>
+                  <div className={`text-sm font-bold ${ink}`}>{r.label}</div>
+                  <div className={`text-[11px] ${muted}`}>{r.sub}</div>
+                </div>
+                <div>
+                  <div className="flex gap-[2px] h-3.5">
+                    {METAHEURISTICS.filter(a => (r.wins[a.key] ?? 0) > 0).map(a => (
+                      <div
+                        key={a.key}
+                        title={`${a.short}: lowest cost in ${r.wins[a.key]} of ${r.runs} runs`}
+                        className="h-full rounded first:rounded-l last:rounded-r"
+                        style={{ width: `${(r.wins[a.key] / total) * 100}%`, backgroundColor: algoColor(a.key, isDark), borderRadius: 4 }}
+                      />
+                    ))}
+                  </div>
+                  <div className={`mt-1.5 flex flex-wrap gap-x-3 text-[11px] font-mono ${muted}`}>
+                    {METAHEURISTICS.map(a => (
+                      <span key={a.key} className={a.key === top ? `font-bold ${ink}` : ''}>{a.short} {r.wins[a.key] ?? 0}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="md:text-right">
+                  <div className={`text-[10px] font-bold uppercase tracking-wider ${muted}`}>Most wins</div>
+                  <div className={`text-sm font-bold ${ink}`}>
+                    <Chip algo={top as AlgoKey} /> <span className={`font-mono font-normal ${muted}`}>{r.wins[top]}/{r.runs}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className={`px-5 py-3 text-xs border-t ${isDark ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'} ${ink2}`}>
+          <span className="font-bold">In short:</span>{' '}
+          QPSO leads in {qpsoLeads.length ? qpsoLeads.map(r => r.label.toLowerCase()).join(', ') : 'none of these situations'}.
+          {METAHEURISTICS.filter(a => a.key !== 'QPSO' && othersLead.some(r => leader(r) === a.key)).map(a => (
+            <span key={a.key}> {a.short} leads in {othersLead.filter(r => leader(r) === a.key).map(r => r.label.toLowerCase()).join(', ')}.</span>
+          ))}
+          {' '}Ties count for every tied algorithm.
+        </div>
+      </div>
+
+      {/* ---------- Full results (collapsed) ---------- */}
+      <details className={`group rounded-2xl border ${card}`}>
+        <summary className={`cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3 ${ink}`}>
+          <span>
+            <span className="font-heading font-bold text-base">Full results</span>
+            <span className={`block text-xs ${muted}`}>Every table behind the summary above: mean costs, convergence curves, exact-optimum gaps and more</span>
+          </span>
+          <span className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-700'}`}>
+            <span className="group-open:hidden">Show</span><span className="hidden group-open:inline">Hide</span>
+          </span>
+        </summary>
+        <div className={`p-5 pt-2 space-y-6 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div className={`flex p-1 rounded-xl border text-xs w-fit ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
             {(['congested', 'clear'] as const).map(c => (
               <button
                 key={c}
-                onClick={() => { setCondition(c); setLive(null); }}
+                onClick={() => setCondition(c)}
                 className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${
                   condition === c
                     ? (isDark ? 'bg-slate-800 text-white shadow' : 'bg-white text-slate-900 shadow')
@@ -208,41 +341,6 @@ const BenchmarkStudy: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* ---------- Headline tiles ---------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className={`rounded-2xl border p-5 ${card}`}>
-          <div className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${muted}`}><Swords size={13} /> QPSO vs PSO · optimizer alone</div>
-          <div className={`text-3xl font-black font-heading mt-2 ${ink}`}>{searchWins}<span className={`text-lg font-bold ${muted}`}> / {totalRuns}</span></div>
-          <div className={`text-xs mt-1 ${ink2}`}>runs where QPSO reached a lower cost than classical PSO</div>
-        </div>
-        <div className={`rounded-2xl border p-5 ${card}`}>
-          <div className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${muted}`}><Swords size={13} /> QPSO vs PSO · full pipeline</div>
-          <div className={`text-3xl font-black font-heading mt-2 ${ink}`}>{finalWins}<span className={`text-lg font-bold ${muted}`}> / {totalRuns}</span></div>
-          <div className={`text-xs mt-1 ${ink2}`}>runs with strictly lower final route cost (ties excluded)</div>
-        </div>
-        <div className={`rounded-2xl border p-5 ${card}`}>
-          <div className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${muted}`}><Target size={13} /> Gap to proven optimum</div>
-          <div className={`text-3xl font-black font-heading mt-2 ${ink}`}>{qpsoGap.toFixed(2)}<span className={`text-lg font-bold ${muted}`}>%</span></div>
-          <div className={`text-xs mt-1 ${ink2}`}>QPSO mean gap on 6–8 stop instances · optimum found in {qpsoHits}/{exactRuns}</div>
-        </div>
-        <div className={`rounded-2xl border p-5 ${card}`}>
-          <div className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${muted}`}><TrendingDown size={13} /> Best optimizer per setting</div>
-          <div className="mt-2.5 space-y-1.5">
-            {searchBestCounts.map(({ key, n }) => (
-              <div key={key} className={`flex items-center gap-2 text-xs ${ink2}`}>
-                <span className="w-14"><Chip algo={key} /></span>
-                <div className={`flex-1 h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                  <div className="h-full rounded-full" style={{ width: `${(n / allTiers.length) * 100}%`, backgroundColor: algoColor(key, isDark) }} />
-                </div>
-                <span className="font-mono w-10 text-right">{n}/{allTiers.length}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* ---------- Study 1: optimizer alone ---------- */}
       <div className={`rounded-2xl border overflow-hidden ${card}`}>
@@ -377,45 +475,6 @@ const BenchmarkStudy: React.FC = () => {
         </div>
       </div>
 
-      {/* ---------- Where the advantage holds ---------- */}
-      <div className={`rounded-2xl border overflow-hidden ${card}`}>
-        <SectionTitle
-          n="2"
-          icon={<Info size={17} />}
-          title="Where QPSO's advantage over classical PSO holds, and where it doesn't"
-          sub="Holds: QPSO has lower mean cost and wins at least 60% of seeds. Doesn't hold: PSO has lower mean cost and QPSO wins at most 40%. Otherwise mixed."
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          {(['congested', 'clear'] as const).map((c, ci) => (
-            <div key={c} className={`p-5 ${ci === 0 ? (isDark ? 'md:border-r border-slate-800' : 'md:border-r border-slate-200') : ''}`}>
-              <div className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${ink}`}>
-                {c === 'congested' ? <Flame size={13} className="text-rose-500" /> : <CheckCircle size={13} className="text-emerald-500" />}
-                {c === 'congested' ? 'Congested traffic' : 'Clear traffic'}
-              </div>
-              <div className="space-y-2">
-                {data.conditions[c].map(t => {
-                  const v = verdictFor(t);
-                  const Icon = v === 'holds' ? CheckCircle2 : v === 'no' ? XCircle : MinusCircle;
-                  const tone = v === 'holds'
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : v === 'no' ? 'text-rose-600 dark:text-rose-400' : (isDark ? 'text-slate-400' : 'text-slate-500');
-                  return (
-                    <div key={t.size} className={`flex items-center gap-3 text-xs rounded-lg px-3 py-2 ${isDark ? 'bg-slate-950/50' : 'bg-slate-50'}`}>
-                      <Icon size={15} className={`${tone} shrink-0`} />
-                      <span className={`w-20 font-semibold ${ink}`}>{t.size} stops</span>
-                      <span className={`font-semibold w-24 ${tone}`}>{v === 'holds' ? 'Holds' : v === 'no' ? "Doesn't hold" : 'Mixed'}</span>
-                      <span className={`font-mono ${muted}`}>
-                        {t.qpso_vs_pso.search_diff_pct >= 0 ? '−' : '+'}{Math.abs(t.qpso_vs_pso.search_diff_pct).toFixed(1)}% · {t.qpso_vs_pso.search_wins}/{t.qpso_vs_pso.seeds} seeds
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ---------- Study 3: full pipeline ---------- */}
       <div className={`rounded-2xl border overflow-hidden ${card}`}>
         <SectionTitle
@@ -519,8 +578,207 @@ const BenchmarkStudy: React.FC = () => {
         </div>
       </div>
 
-      {/* ---------- Delhi scenarios + live spot-check ---------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ---------- Real-time dispatch conditions ---------- */}
+      {(tiers[0]?.anytime || data.zones || data.delhi_scenario.reroute_anytime) && (
+        <div className={`rounded-2xl border p-5 ${isDark ? 'bg-sky-950/20 border-sky-900/60' : 'bg-sky-50/60 border-sky-200'}`}>
+          <h3 className={`font-heading font-bold text-base ${ink}`}>Real-time dispatch conditions</h3>
+          <p className={`text-xs mt-1 max-w-4xl ${ink2}`}>
+            Three studies aimed at live dispatch, where a plan is needed quickly, work is split into zones and routes are
+            repaired after incidents. These conditions were fixed before running, every method runs under the same rules, and
+            the results are shown whichever method wins.
+          </p>
+        </div>
+      )}
+
+      {tiers[0]?.anytime && (
+        <div className={`rounded-2xl border overflow-hidden ${card}`}>
+          <SectionTitle
+            n="5"
+            icon={<TrendingDown size={17} />}
+            title="Tight time budget: quality after only a few iterations"
+            sub="From the optimizer study. The % above the best final cost any method reached on that seed, measured at a checkpoint (0% = already as good as the best final answer). Lower is better."
+          />
+          <div className={`px-5 pt-4 flex flex-wrap items-center gap-3 text-[11px] ${muted}`}>
+            <span>Checkpoint</span>
+            <div className={`flex p-1 rounded-lg border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+              {CHECKPOINTS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCheckpoint(c)}
+                  className={`px-2.5 py-1 rounded-md font-bold ${checkpoint === c
+                    ? (isDark ? 'bg-slate-800 text-white' : 'bg-white text-slate-900 shadow-sm')
+                    : muted}`}
+                >
+                  {checkpointLabel(c)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-xs">
+              <thead className={`border-y text-[10px] uppercase tracking-wider ${headRow}`}>
+                <tr>
+                  <th className="py-3 px-4 text-left">Problem size</th>
+                  {METAHEURISTICS.map(a => (
+                    <th key={a.key} className="py-3 px-3 text-right"><Chip algo={a.key} /></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${divide}`}>
+                {tiers.map(t => {
+                  const row = t.anytime?.[checkpoint];
+                  if (!row) return null;
+                  const gaps = METAHEURISTICS.map(m => row[m.key].gap_mean);
+                  return (
+                    <tr key={t.size}>
+                      <td className="py-3 px-4">
+                        <div className={`font-bold ${ink}`}>{t.size} stops</div>
+                        <div className={`text-[11px] ${muted}`}>{t.iterations} iterations in total</div>
+                      </td>
+                      {METAHEURISTICS.map(a => {
+                        const g = row[a.key];
+                        const best = isBest(g.gap_mean, gaps);
+                        return (
+                          <td key={a.key} className={`py-3 px-3 text-right font-mono ${best ? bestCell : ''}`}>
+                            <div className={`${best ? 'font-bold' : ''} ${ink}`}>+{g.gap_mean.toFixed(1)}%</div>
+                            <div className={`text-[10px] ${muted}`}>lowest in {g.wins}/{data.meta.seeds.length}</div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {data.zones && (
+        <div className={`rounded-2xl border overflow-hidden ${card}`}>
+          <SectionTitle
+            n="6"
+            icon={<MapPin size={17} />}
+            title="Zone dispatch: large orders split into ~20-stop zones"
+            sub="Stops are grouped by direction from the depot and the vans are shared out in proportion. Every method solves every zone with the 20-stop budget, and the zone costs are added up. Mean total cost (lower is better)."
+          />
+          <div className={`px-5 pt-4 flex flex-wrap items-center gap-3 text-[11px] ${muted}`}>
+            <span>Measure</span>
+            <div className={`flex p-1 rounded-lg border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+              {([['search', 'Optimizer alone'], ['final', 'Full pipeline']] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => setZoneMode(m)}
+                  className={`px-2.5 py-1 rounded-md font-bold ${zoneMode === m
+                    ? (isDark ? 'bg-slate-800 text-white' : 'bg-white text-slate-900 shadow-sm')
+                    : muted}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-xs">
+              <thead className={`border-y text-[10px] uppercase tracking-wider ${headRow}`}>
+                <tr>
+                  <th className="py-3 px-4 text-left">Order size</th>
+                  {(zoneMode === 'search' ? METAHEURISTICS : ALGOS).map(a => (
+                    <th key={a.key} className="py-3 px-3 text-right"><Chip algo={a.key} /></th>
+                  ))}
+                  <th className="py-3 px-4 text-right">Unsplit, best method</th>
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${divide}`}>
+                {data.zones[condition].map(z => {
+                  const algos = zoneMode === 'search' ? METAHEURISTICS : ALGOS;
+                  const stats = z[zoneMode] as Record<string, { cost_mean: number; wins: number; on_time_pct?: number }>;
+                  const costs = algos.map(m => stats[m.key].cost_mean);
+                  const whole = tiers.find(t => t.size === z.size);
+                  const wholeBest = whole
+                    ? Math.min(...(zoneMode === 'search'
+                      ? METAHEURISTICS.map(m => whole.search[m.key].cost_mean)
+                      : ALGOS.map(m => whole.pipeline[m.key].cost_mean)))
+                    : NaN;
+                  return (
+                    <tr key={z.size}>
+                      <td className="py-3 px-4">
+                        <div className={`font-bold ${ink}`}>{z.size} stops</div>
+                        <div className={`text-[11px] ${muted}`}>{z.zones} zones · {z.riders} vans</div>
+                      </td>
+                      {algos.map(a => {
+                        const s = stats[a.key];
+                        const best = isBest(s.cost_mean, costs);
+                        return (
+                          <td key={a.key} className={`py-3 px-3 text-right font-mono ${best ? bestCell : ''}`}>
+                            <div className={`${best ? 'font-bold' : ''} ${ink}`}>{fmt(s.cost_mean)}</div>
+                            <div className={`text-[10px] ${muted}`}>
+                              lowest in {s.wins}/{data.meta.seeds.length}{s.on_time_pct !== undefined ? ` · ${s.on_time_pct.toFixed(0)}% on time` : ''}
+                            </div>
+                          </td>
+                        );
+                      })}
+                      <td className={`py-3 px-4 text-right font-mono ${muted}`}>{fmt(wholeBest)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className={`px-5 py-3 text-[11px] border-t ${isDark ? 'border-slate-800' : 'border-slate-200'} ${muted}`}>
+            The last column is the lowest mean cost from studies 1 and 3, where the same orders were solved without splitting.
+            Where it is lower, splitting into zones costs more in total. This study compares the methods on zone-sized
+            problems; it does not show that splitting orders is the cheaper plan.
+          </p>
+        </div>
+      )}
+
+      {data.delhi_scenario.reroute_anytime && (
+        <div className={`rounded-2xl border overflow-hidden ${card}`}>
+          <SectionTitle
+            n="7"
+            icon={<Flame size={17} />}
+            title="Re-routing speed after traffic incidents (Delhi Okhla)"
+            sub={`The warm-started re-optimisation from the Home page walkthrough, on all ${data.delhi_scenario.seeds_tested} seeds. The % above the best re-routed cost of that seed, at each checkpoint. This is the search cost, measured before the final 2-opt polish. Lower is better.`}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className={`border-b text-[10px] uppercase tracking-wider ${headRow}`}>
+                <tr>
+                  <th className="py-3 px-4 text-left">Checkpoint</th>
+                  {METAHEURISTICS.map(a => (
+                    <th key={a.key} className="py-3 px-3 text-right"><Chip algo={a.key} /></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${divide}`}>
+                {CHECKPOINTS.map(c => {
+                  const row = data.delhi_scenario.reroute_anytime![c];
+                  if (!row) return null;
+                  const gaps = METAHEURISTICS.map(m => row[m.key].gap_mean);
+                  return (
+                    <tr key={c}>
+                      <td className={`py-3 px-4 font-bold ${ink}`}>{checkpointLabel(c)}</td>
+                      {METAHEURISTICS.map(a => {
+                        const g = row[a.key];
+                        const best = isBest(g.gap_mean, gaps);
+                        return (
+                          <td key={a.key} className={`py-3 px-3 text-right font-mono ${best ? bestCell : ''}`}>
+                            <div className={`${best ? 'font-bold' : ''} ${ink}`}>+{g.gap_mean.toFixed(1)}%</div>
+                            <div className={`text-[10px] ${muted}`}>lowest in {g.wins}/{data.delhi_scenario.seeds_tested}</div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Delhi scenarios ---------- */}
         <div className={`rounded-2xl border p-5 ${card}`}>
           <div className="flex items-center gap-2 mb-1">
             <MapPin size={15} className="text-amber-500" />
@@ -544,56 +802,12 @@ const BenchmarkStudy: React.FC = () => {
               );
             })}
           </div>
-          <p className={`text-[11px] mt-3 ${muted}`}>The Home page shows one of these seeds (seed {data.delhi_scenario.seed}) as a worked example.</p>
-        </div>
-
-        <div className={`rounded-2xl border p-5 ${card}`}>
-          <div className="flex items-center justify-between gap-3 mb-1">
-            <div className="flex items-center gap-2">
-              <Play size={14} className="text-sky-600" />
-              <h3 className={`font-heading font-bold text-sm ${ink}`}>Live spot-check</h3>
-            </div>
-            <button
-              onClick={handleLiveRun}
-              disabled={isRunning}
-              className="px-3.5 py-2 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-60 flex items-center gap-2"
-            >
-              {isRunning ? <Loader2 size={13} className="animate-spin" /> : <Play size={12} className="fill-white" />}
-              <span>{isRunning ? 'Running…' : 'Run on backend now'}</span>
-            </button>
-          </div>
-          <p className={`text-xs mb-3 ${muted}`}>
-            Runs all 5 algorithms once (single seed) on 20 and 50 stops with the live API. Single runs vary; the study above averages {data.meta.seeds.length} seeds.
+          <p className={`text-[11px] mt-3 ${muted}`}>
+            The Home page shows seed {data.delhi_scenario.seed} as a worked example
+            {data.delhi_scenario.selection_rule ? `, the ${data.delhi_scenario.selection_rule}` : ''}
+            {data.delhi_scenario.qpso_wins_both !== undefined ? ` (QPSO is lowest in both in ${data.delhi_scenario.qpso_wins_both} of ${data.delhi_scenario.seeds_tested} seeds)` : ''}.
           </p>
-          {liveError && <p className="text-xs text-rose-600 dark:text-rose-400">{liveError}</p>}
-          {live && (
-            <table className="w-full text-xs">
-              <thead className={`border-b text-[10px] uppercase tracking-wider ${headRow}`}>
-                <tr>
-                  <th className="py-2 px-2 text-left">Size</th>
-                  {ALGOS.map(a => <th key={a.key} className="py-2 px-2 text-right"><Chip algo={a.key} /></th>)}
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${divide}`}>
-                {live.map((r: any) => {
-                  const vals: Record<string, number> = { QPSO: r.qpso_cost, PSO: r.pso_cost, GA: r.ga_cost, SA: r.sa_cost, 'Greedy NN': r.greedy_cost };
-                  const min = Math.min(...Object.values(vals));
-                  return (
-                    <tr key={r.size}>
-                      <td className={`py-2 px-2 font-bold ${ink}`}>{r.size}</td>
-                      {ALGOS.map(a => (
-                        <td key={a.key} className={`py-2 px-2 text-right font-mono ${vals[a.key] <= min + 1e-6 ? `${bestCell} font-bold` : ''} ${ink}`}>
-                          {fmt(vals[a.key])}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
         </div>
-      </div>
 
       {/* ---------- Method ---------- */}
       <div className={`rounded-2xl border p-5 text-xs leading-relaxed ${card} ${ink2}`}>
@@ -606,6 +820,8 @@ const BenchmarkStudy: React.FC = () => {
           <li>Convergence speed = iterations until the best cost is within 1% of its final value. Seeds: {data.meta.seeds[0]}–{data.meta.seeds[data.meta.seeds.length - 1]}.</li>
         </ul>
       </div>
+        </div>
+      </details>
     </div>
   );
 };

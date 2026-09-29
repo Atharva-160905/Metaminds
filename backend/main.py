@@ -12,6 +12,8 @@ import os
 import sys
 import time
 import json
+import copy
+import threading
 import math
 import numpy as np
 
@@ -971,24 +973,28 @@ def reoptimize_pune(req: OptimizeRequest):
 # =====================================================================
 
 class DelhiGlobalState:
-    def __init__(self):
+    def __init__(self, build_default: bool = True):
         self.seed: int = 42
-        self.city: DelhiCityGraph = DelhiCityGraph(seed=42)
-        self.deliveries: List[Dict[str, Any]] = self.city.generate_deliveries(num_deliveries=25, seed=42)
         self.num_riders: int = 4
         self.rider_capacity: int = 8
         self.objective: str = "balanced"
         self.w_time: float = 0.6
         self.w_dist: float = 0.4
-        self.problem: VRPProblem = VRPProblem(
-            city=self.city,
-            deliveries=self.deliveries,
-            num_riders=self.num_riders,
-            rider_capacity=self.rider_capacity,
-            objective=self.objective,
-            w_time=self.w_time,
-            w_dist=self.w_dist
-        )
+        self.city: Optional[DelhiCityGraph] = None
+        self.deliveries: List[Dict[str, Any]] = []
+        self.problem: Optional[VRPProblem] = None
+        if build_default:
+            self.city = DelhiCityGraph(seed=42)
+            self.deliveries = self.city.generate_deliveries(num_deliveries=25, seed=42)
+            self.problem = VRPProblem(
+                city=self.city,
+                deliveries=self.deliveries,
+                num_riders=self.num_riders,
+                rider_capacity=self.rider_capacity,
+                objective=self.objective,
+                w_time=self.w_time,
+                w_dist=self.w_dist
+            )
         self.last_qpso_result: Optional[Dict[str, Any]] = None
         self.last_pso_result: Optional[Dict[str, Any]] = None
         self.last_ga_result: Optional[Dict[str, Any]] = None
@@ -1036,42 +1042,41 @@ def get_delhi_roads():
             return json.load(f)
     return {"roads": []}
 
-@app.post("/api/delhi/problem/generate")
-def generate_delhi_problem(req: DelhiProblemGenerateRequest):
+def _delhi_generate(state: DelhiGlobalState, req: DelhiProblemGenerateRequest) -> Dict[str, Any]:
     """Generates delivery packages across landmarks and industrial/residential pockets in Okhla & Kalkaji."""
     seed = req.seed if req.seed is not None else 42
-    delhi_state.seed = seed
+    state.seed = seed
 
-    delhi_state.city = DelhiCityGraph(seed=seed)
-    delhi_state.deliveries = delhi_state.city.generate_deliveries(num_deliveries=req.num_deliveries, seed=seed)
-    delhi_state.num_riders = req.num_riders
-    delhi_state.rider_capacity = req.rider_capacity
-    delhi_state.objective = req.objective
-    delhi_state.active_incidents = []
+    state.city = DelhiCityGraph(seed=seed)
+    state.deliveries = state.city.generate_deliveries(num_deliveries=req.num_deliveries, seed=seed)
+    state.num_riders = req.num_riders
+    state.rider_capacity = req.rider_capacity
+    state.objective = req.objective
+    state.active_incidents = []
 
-    delhi_state.problem = VRPProblem(
-        city=delhi_state.city,
-        deliveries=delhi_state.deliveries,
-        num_riders=delhi_state.num_riders,
-        rider_capacity=delhi_state.rider_capacity,
-        objective=delhi_state.objective,
-        w_time=delhi_state.w_time,
-        w_dist=delhi_state.w_dist
+    state.problem = VRPProblem(
+        city=state.city,
+        deliveries=state.deliveries,
+        num_riders=state.num_riders,
+        rider_capacity=state.rider_capacity,
+        objective=state.objective,
+        w_time=state.w_time,
+        w_dist=state.w_dist
     )
 
-    delhi_state.last_qpso_result = None
-    delhi_state.last_pso_result = None
-    delhi_state.last_ga_result = None
-    delhi_state.last_sa_result = None
-    delhi_state.last_greedy_result = None
-    delhi_state.qpso_raw_state = None
-    delhi_state.pso_raw_state = None
-    delhi_state.ga_raw_state = None
-    delhi_state.sa_raw_state = None
+    state.last_qpso_result = None
+    state.last_pso_result = None
+    state.last_ga_result = None
+    state.last_sa_result = None
+    state.last_greedy_result = None
+    state.qpso_raw_state = None
+    state.pso_raw_state = None
+    state.ga_raw_state = None
+    state.sa_raw_state = None
 
     return {
         "message": f"Successfully generated Delhi logistics problem with {req.num_deliveries} stops and {req.num_riders} fleet vehicles.",
-        "city": delhi_state.city.to_dict(),
+        "city": state.city.to_dict(),
         "config": {
             "num_deliveries": req.num_deliveries,
             "num_riders": req.num_riders,
@@ -1081,30 +1086,29 @@ def generate_delhi_problem(req: DelhiProblemGenerateRequest):
         }
     }
 
-@app.post("/api/delhi/optimize")
-def run_delhi_optimization(req: OptimizeRequest):
+def _delhi_optimize(state: DelhiGlobalState, req: OptimizeRequest) -> Dict[str, Any]:
     """
     Executes QPSO, PSO, GA, and SA on the real Delhi Okhla road network.
     """
-    opt_seed = req.seed if req.seed is not None else delhi_state.seed
-    num_deliv = delhi_state.problem.num_deliveries
+    opt_seed = req.seed if req.seed is not None else state.seed
+    num_deliv = state.problem.num_deliveries
     iters = req.max_iterations if req.max_iterations is not None else min(80, max(30, int(20 + num_deliv * 0.25)))
     num_p = min(req.num_particles, 25) if req.num_particles else 25
 
     # 1. Run QPSO
     qpso = QPSOOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         num_particles=num_p,
         max_iterations=iters,
         seed=opt_seed
     )
     qpso_res = qpso.optimize()
-    delhi_state.qpso_raw_state = qpso_res.pop("raw_state", None)
-    delhi_state.last_qpso_result = qpso_res
+    state.qpso_raw_state = qpso_res.pop("raw_state", None)
+    state.last_qpso_result = qpso_res
 
     # 2. Run Classical PSO
     pso = ClassicalPSOOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         num_particles=num_p,
         max_iterations=iters,
         w_start=0.9,
@@ -1112,12 +1116,12 @@ def run_delhi_optimization(req: OptimizeRequest):
         seed=opt_seed
     )
     pso_res = pso.optimize()
-    delhi_state.pso_raw_state = pso_res.pop("raw_state", None)
-    delhi_state.last_pso_result = pso_res
+    state.pso_raw_state = pso_res.pop("raw_state", None)
+    state.last_pso_result = pso_res
 
     # 3. Run Genetic Algorithm
     ga = GAOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         population_size=num_p,
         max_iterations=iters,
         crossover_rate=0.85,
@@ -1127,12 +1131,12 @@ def run_delhi_optimization(req: OptimizeRequest):
         seed=opt_seed
     )
     ga_res = ga.optimize()
-    delhi_state.ga_raw_state = ga_res.pop("raw_state", None)
-    delhi_state.last_ga_result = ga_res
+    state.ga_raw_state = ga_res.pop("raw_state", None)
+    state.last_ga_result = ga_res
 
     # 4. Run Simulated Annealing
     sa = SAOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         max_iterations=iters,
         initial_temp=100.0,
         final_temp=0.01,
@@ -1141,16 +1145,16 @@ def run_delhi_optimization(req: OptimizeRequest):
         seed=opt_seed
     )
     sa_res = sa.optimize()
-    delhi_state.sa_raw_state = sa_res.pop("raw_state", None)
-    delhi_state.last_sa_result = sa_res
+    state.sa_raw_state = sa_res.pop("raw_state", None)
+    state.last_sa_result = sa_res
 
     # 5. Run Greedy Nearest-Neighbour (Baseline)
     gnn = GreedyNearestNeighbourOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         seed=opt_seed
     )
     greedy_res = gnn.optimize()
-    delhi_state.last_greedy_result = greedy_res
+    state.last_greedy_result = greedy_res
 
     # 6. 5-way metrics
     all_results = {
@@ -1193,48 +1197,46 @@ def run_delhi_optimization(req: OptimizeRequest):
             "iterations_executed": iters,
             "all_costs": costs
         },
-        "city": delhi_state.city.to_dict()
+        "city": state.city.to_dict()
     }
 
-@app.post("/api/delhi/traffic/simulate")
-def simulate_delhi_traffic(req: DelhiTrafficSimulateRequest):
+def _delhi_traffic(state: DelhiGlobalState, req: DelhiTrafficSimulateRequest) -> Dict[str, Any]:
     """
     Simulates real Delhi traffic incidents on active routes or choke points (Mathura Rd, Nehru Place Flyover, Ring Rd).
     """
     t_start = time.perf_counter()
     candidate_edges = []
-    if delhi_state.last_qpso_result:
-        for r_data in delhi_state.last_qpso_result["solution"]["rider_routes"]:
+    if state.last_qpso_result:
+        for r_data in state.last_qpso_result["solution"]["rider_routes"]:
             nodes = r_data.get("waypoint_nodes", [])
             for i in range(len(nodes) - 1):
                 u, v = nodes[i], nodes[i+1]
-                if delhi_state.city.graph.has_edge(u, v):
+                if state.city.graph.has_edge(u, v):
                     candidate_edges.append((u, v))
 
-    incidents = delhi_state.city.inject_traffic_incident(
+    incidents = state.city.inject_traffic_incident(
         candidate_edges=candidate_edges if candidate_edges else None,
         count=req.incident_count
     )
-    delhi_state.active_incidents = incidents
+    state.active_incidents = incidents
 
     # Dijkstra matrix refresh
     t_dijkstra_start = time.perf_counter()
-    delhi_state.problem.refresh_matrices()
+    state.problem.refresh_matrices()
     dijkstra_ms = round((time.perf_counter() - t_dijkstra_start) * 1000.0, 2)
     total_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
 
     return {
         "message": f"Simulated traffic choke points on {len(incidents)} Delhi road segment(s).",
         "incidents": incidents,
-        "city": delhi_state.city.to_dict(),
+        "city": state.city.to_dict(),
         "timing": {
             "dijkstra_refresh_ms": dijkstra_ms,
             "total_request_ms": total_ms
         }
     }
 
-@app.post("/api/delhi/reoptimize")
-def reoptimize_delhi(req: OptimizeRequest):
+def _delhi_reoptimize(state: DelhiGlobalState, req: OptimizeRequest) -> Dict[str, Any]:
     """
     Warm-started re-optimization for Delhi Okhla graph upon road incidents.
     """
@@ -1242,69 +1244,69 @@ def reoptimize_delhi(req: OptimizeRequest):
 
     # 1. Dijkstra Refresh
     t_dijkstra_start = time.perf_counter()
-    if not delhi_state.active_incidents:
-        delhi_state.active_incidents = delhi_state.city.inject_traffic_incident(count=2)
-    delhi_state.problem.refresh_matrices()
+    if not state.active_incidents:
+        state.active_incidents = state.city.inject_traffic_incident(count=2)
+    state.problem.refresh_matrices()
     dijkstra_ms = round((time.perf_counter() - t_dijkstra_start) * 1000.0, 2)
 
-    num_deliv = delhi_state.problem.num_deliveries
+    num_deliv = state.problem.num_deliveries
     iters = req.max_iterations if req.max_iterations is not None else min(180, max(60, int(50 + num_deliv * 0.4)))
-    opt_seed = req.seed if req.seed is not None else (delhi_state.seed + 101)
+    opt_seed = req.seed if req.seed is not None else (state.seed + 101)
     num_p = min(req.num_particles, 25) if req.num_particles else 25
 
     # 2. Warm QPSO
     qpso = QPSOOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         num_particles=num_p,
         max_iterations=iters,
         seed=opt_seed
     )
-    qpso_res = qpso.optimize(warm_state=delhi_state.qpso_raw_state)
-    delhi_state.qpso_raw_state = qpso_res.pop("raw_state", None)
-    delhi_state.last_qpso_result = qpso_res
+    qpso_res = qpso.optimize(warm_state=state.qpso_raw_state)
+    state.qpso_raw_state = qpso_res.pop("raw_state", None)
+    state.last_qpso_result = qpso_res
 
     # 3. Warm PSO
     pso = ClassicalPSOOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         num_particles=num_p,
         max_iterations=iters,
         w_start=0.9,
         w_end=0.4,
         seed=opt_seed
     )
-    pso_res = pso.optimize(warm_state=delhi_state.pso_raw_state)
-    delhi_state.pso_raw_state = pso_res.pop("raw_state", None)
-    delhi_state.last_pso_result = pso_res
+    pso_res = pso.optimize(warm_state=state.pso_raw_state)
+    state.pso_raw_state = pso_res.pop("raw_state", None)
+    state.last_pso_result = pso_res
 
     # 4. Warm GA
     ga = GAOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         population_size=num_p,
         max_iterations=iters,
         seed=opt_seed
     )
-    ga_res = ga.optimize(warm_state=delhi_state.ga_raw_state)
-    delhi_state.ga_raw_state = ga_res.pop("raw_state", None)
-    delhi_state.last_ga_result = ga_res
+    ga_res = ga.optimize(warm_state=state.ga_raw_state)
+    state.ga_raw_state = ga_res.pop("raw_state", None)
+    state.last_ga_result = ga_res
 
     # 5. Warm SA
     sa = SAOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         max_iterations=iters,
         num_particles=num_p,
         seed=opt_seed
     )
-    sa_res = sa.optimize(warm_state=delhi_state.sa_raw_state)
-    delhi_state.sa_raw_state = sa_res.pop("raw_state", None)
-    delhi_state.last_sa_result = sa_res
+    sa_res = sa.optimize(warm_state=state.sa_raw_state)
+    state.sa_raw_state = sa_res.pop("raw_state", None)
+    state.last_sa_result = sa_res
 
     # 6. Greedy NN Baseline
     gnn = GreedyNearestNeighbourOptimizer(
-        problem=delhi_state.problem,
+        problem=state.problem,
         seed=opt_seed
     )
     greedy_res = gnn.optimize()
-    delhi_state.last_greedy_result = greedy_res
+    state.last_greedy_result = greedy_res
 
     total_request_ms = round((time.perf_counter() - t_request_start) * 1000.0, 2)
 
@@ -1327,7 +1329,7 @@ def reoptimize_delhi(req: OptimizeRequest):
 
     return {
         "message": "Warm-started re-optimization complete on Delhi Okhla road network across 5 algorithms.",
-        "incidents": delhi_state.active_incidents,
+        "incidents": state.active_incidents,
         "qpso": qpso_res,
         "pso": pso_res,
         "ga": ga_res,
@@ -1360,5 +1362,69 @@ def reoptimize_delhi(req: OptimizeRequest):
             "ga": ga_res.get("tail_improvement_pct"),
             "sa": sa_res.get("tail_improvement_pct")
         },
-        "city": delhi_state.city.to_dict()
+        "city": state.city.to_dict()
     }
+
+
+# Interactive Delhi tab: the steps act on the shared delhi_state
+@app.post("/api/delhi/problem/generate")
+def generate_delhi_problem(req: DelhiProblemGenerateRequest):
+    return _delhi_generate(delhi_state, req)
+
+@app.post("/api/delhi/optimize")
+def run_delhi_optimization(req: OptimizeRequest):
+    return _delhi_optimize(delhi_state, req)
+
+@app.post("/api/delhi/traffic/simulate")
+def simulate_delhi_traffic(req: DelhiTrafficSimulateRequest):
+    return _delhi_traffic(delhi_state, req)
+
+@app.post("/api/delhi/reoptimize")
+def reoptimize_delhi(req: OptimizeRequest):
+    return _delhi_reoptimize(delhi_state, req)
+
+
+class DelhiDemoRequest(BaseModel):
+    num_deliveries: int = Field(40, ge=5, le=100)
+    num_riders: int = Field(6, ge=1, le=20)
+    rider_capacity: int = Field(20, ge=1, le=200)
+    objective: str = Field("balanced", pattern="^(time|distance|balanced)$")
+    seed: int = 2
+    num_particles: int = Field(25, ge=10, le=25)
+    max_iterations: int = Field(60, ge=10, le=200)
+    incident_count: int = Field(2, ge=1, le=5)
+
+_demo_cache: Dict[tuple, Dict[str, Any]] = {}
+_demo_lock = threading.Lock()
+
+@app.post("/api/delhi/demo")
+def run_delhi_demo(req: DelhiDemoRequest):
+    """
+    Home page walkthrough in a single call: generate -> optimise -> 2 incidents -> warm-started re-optimise.
+    Runs on its own private problem (never the shared Delhi tab state), so clicks, other tabs and other
+    users cannot change it. The run is deterministic for a given seed and is cached, so every call
+    returns the identical response. scripts/run_real_benchmarks.py records its output for the Home page.
+    """
+    key = tuple(sorted(req.model_dump().items()))
+    with _demo_lock:
+        if key in _demo_cache:
+            return _demo_cache[key]
+
+    state = DelhiGlobalState(build_default=False)
+    _delhi_generate(state, DelhiProblemGenerateRequest(
+        num_deliveries=req.num_deliveries, num_riders=req.num_riders,
+        rider_capacity=req.rider_capacity, objective=req.objective, seed=req.seed
+    ))
+    opt_req = OptimizeRequest(num_particles=req.num_particles, max_iterations=req.max_iterations, seed=req.seed)
+    # Deep copies freeze each step's snapshot before the next step changes the shared city/problem objects
+    step1 = copy.deepcopy(_delhi_optimize(state, opt_req))
+    traffic_full = _delhi_traffic(state, DelhiTrafficSimulateRequest(incident_count=req.incident_count))
+    traffic = copy.deepcopy({k: v for k, v in traffic_full.items() if k != "city"})  # step3 carries the updated city
+    step3 = _delhi_reoptimize(state, opt_req)
+
+    result = {"config": req.model_dump(), "step1": step1, "traffic": traffic, "step3": step3}
+    with _demo_lock:
+        if len(_demo_cache) >= 8:
+            _demo_cache.pop(next(iter(_demo_cache)))
+        _demo_cache[key] = result
+    return result

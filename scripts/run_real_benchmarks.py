@@ -11,6 +11,14 @@ Studies
                     reports each method's optimality gap.
 4. Delhi scenario - the Home page walkthrough, replayed through the live API exactly as the page calls it.
 
+Real-time dispatch conditions (fixed before running; every result is reported whichever method wins)
+5. Anytime study  - from the search study: each method's cost after 5, 10 and 20 iterations and at the end,
+                    as % above the best final cost of that seed. Shows who is good early under a tight budget.
+6. Zone study     - 100/250/500 stops split into ~20-stop zones by angle around the depot (vans shared in
+                    proportion); every method solves every zone and the zone costs are summed.
+7. Re-route speed - the Delhi re-route (step 3) of every seed: cost after 5, 10 and 20 iterations of the
+                    warm-started re-optimisation, as % above the best final re-route cost of that seed.
+
 Fairness: every algorithm gets the same instances, seeds, population size (30), iteration budget,
 decoder and local search. Run:  python scripts/run_real_benchmarks.py
 """
@@ -50,6 +58,10 @@ DEMO = {"num_deliveries": 40, "num_riders": 6, "rider_capacity": 20, "objective"
 DEMO_PARTICLES = 25
 DEMO_ITERATIONS = 60
 DEMO_SEED_RANGE = range(1, 61)
+
+ANYTIME_CHECKPOINTS = [5, 10, 20]
+ZONE_SIZES = [100, 250, 500]
+ZONE_STOPS = 20
 
 LABELS = {20: "Micro", 50: "Urban Zone", 100: "District", 250: "Metropolitan", 500: "Mega Fleet"}
 
@@ -124,6 +136,28 @@ def summarise(runs: dict, key: str, algos: list) -> dict:
 
 def mean_of(runs: dict, algo: str, key: str, digits: int = 2) -> float:
     return round(float(np.mean([r[key] for r in runs[algo]])), digits)
+
+
+def anytime_table(curves: dict, algos: list, checkpoints: list) -> dict:
+    """
+    curves[algo] is a list (one per seed) of best-so-far costs by iteration (index 0 = start).
+    For each checkpoint, reports every algo's mean gap (%) to the best final cost among all algos
+    in that seed, and in how many seeds each algo is lowest at that checkpoint.
+    """
+    n_seeds = len(curves[algos[0]])
+    out = {}
+    for cp in list(checkpoints) + ["final"]:
+        gaps = {a: [] for a in algos}
+        wins = {a: 0 for a in algos}
+        for s in range(n_seeds):
+            ref = min(curves[a][s][-1] for a in algos)
+            vals = {a: curves[a][s][-1] if cp == "final" else curves[a][s][min(cp, len(curves[a][s]) - 1)] for a in algos}
+            for a in algos:
+                gaps[a].append((vals[a] - ref) / abs(ref) * 100.0 if ref else 0.0)
+            for w in winners(vals):
+                wins[w] += 1
+        out[str(cp)] = {a: {"gap_mean": round(float(np.mean(gaps[a])), 2), "wins": wins[a]} for a in algos}
+    return out
 
 
 def run_tiers(condition: str) -> list:
@@ -204,11 +238,83 @@ def run_tiers(condition: str) -> list:
                 "final_diff_pct": round((p_f - q_f) / p_f * 100.0, 2) if p_f else 0.0,
             },
             "curves": {a: [round(float(v), 1) for v in np.mean(np.array(curves[a]), axis=0)] for a in METAHEURISTICS},
+            "anytime": anytime_table(curves, METAHEURISTICS, ANYTIME_CHECKPOINTS),
         }
         tiers.append(tier)
         print(f"[{condition}] {size:3d} stops  search best={tier['search_best']:4s}  pipeline best={tier['pipeline_best']:9s}  "
               f"QPSO>PSO search {h2h['search']}/{len(SEEDS)}  ({time.time() - t0:.0f}s)", flush=True)
     return tiers
+
+
+def zone_split(prob: VRPProblem, total_riders: int) -> list:
+    """Sorts stops by angle around the depot, cuts them into ~ZONE_STOPS zones and shares vans in proportion."""
+    dx, dy = prob.depot_pos
+    order = sorted(range(prob.num_deliveries),
+                   key=lambda i: np.arctan2(prob.deliveries[i]["pos"][1] - dy, prob.deliveries[i]["pos"][0] - dx))
+    zones = [list(z) for z in np.array_split(order, int(np.ceil(prob.num_deliveries / ZONE_STOPS)))]
+    shares = [total_riders * len(z) / prob.num_deliveries for z in zones]
+    riders = [max(1, int(np.floor(x))) for x in shares]
+    for i in sorted(range(len(zones)), key=lambda i: shares[i] - np.floor(shares[i]), reverse=True):
+        if sum(riders) >= total_riders:
+            break
+        riders[i] += 1
+    return list(zip(zones, riders))
+
+
+def run_zones(condition: str) -> list:
+    congested = condition == "congested"
+    iterations = iterations_for(ZONE_STOPS)
+    rows = []
+    for size in ZONE_SIZES:
+        totals = {"search": {a: [] for a in METAHEURISTICS}, "final": {a: [] for a in ALL_ALGOS}}
+        wins = {"search": {a: 0 for a in METAHEURISTICS}, "final": {a: 0 for a in ALL_ALGOS}}
+        on_time = {a: [] for a in ALL_ALGOS}
+        ms = {a: [] for a in ALL_ALGOS}
+        t0 = time.time()
+        n_zones = 0
+        for seed in SEEDS:
+            # The full problem assigns weights and time windows; zones reuse those same stops and the same city.
+            full = build_problem(size, seed, congested)
+            zones = zone_split(full, riders_for(size))
+            n_zones = len(zones)
+            seed_tot = {mode: {a: 0.0 for a in algos} for mode, algos in (("search", METAHEURISTICS), ("final", ALL_ALGOS))}
+            late = {a: 0 for a in ALL_ALGOS}
+            seed_ms = {a: 0.0 for a in ALL_ALGOS}
+            for z_idx, (idx, riders) in enumerate(zones):
+                sub = VRPProblem(city=full.city, deliveries=[full.deliveries[i] for i in idx], num_riders=riders,
+                                 rider_capacity_kg=CAPACITY_KG, objective="balanced", seed=seed)
+                z_seed = seed * 1000 + z_idx
+                for name, opt in make_optimizers(sub, iterations, z_seed, seed_greedy=False).items():
+                    seed_tot["search"][name] += opt.optimize()["pre_local_search_cost"]
+                results = {n: o.optimize() for n, o in make_optimizers(sub, iterations, z_seed, seed_greedy=True).items()}
+                results["Greedy NN"] = GreedyNearestNeighbourOptimizer(sub, seed=z_seed).optimize()
+                for a, r in results.items():
+                    m = solution_metrics(r)
+                    seed_tot["final"][a] += m["cost"]
+                    late[a] += m["late"]
+                    seed_ms[a] += m["time_ms"]
+            for mode in totals:
+                for a in totals[mode]:
+                    totals[mode][a].append(seed_tot[mode][a])
+                for w in winners(seed_tot[mode]):
+                    wins[mode][w] += 1
+            for a in ALL_ALGOS:
+                on_time[a].append(100.0 * (size - late[a]) / size)
+                ms[a].append(seed_ms[a])
+        rows.append({
+            "size": size,
+            "zones": n_zones,
+            "riders": riders_for(size),
+            "iterations_per_zone": iterations,
+            "search": {a: {"cost_mean": round(float(np.mean(totals["search"][a])), 1), "wins": wins["search"][a]}
+                       for a in METAHEURISTICS},
+            "final": {a: {"cost_mean": round(float(np.mean(totals["final"][a])), 1), "wins": wins["final"][a],
+                          "on_time_pct": round(float(np.mean(on_time[a])), 1), "time_ms": round(float(np.mean(ms[a])), 1)}
+                      for a in ALL_ALGOS},
+        })
+        print(f"[zones {condition}] {size} stops / {n_zones} zones  search wins {wins['search']}  "
+              f"final wins {wins['final']}  ({time.time() - t0:.0f}s)", flush=True)
+    return rows
 
 
 def run_exact() -> list:
@@ -259,43 +365,75 @@ def api_metrics(res: dict) -> dict:
 
 
 def run_delhi_scenario() -> dict:
-    """Replays the Home page walkthrough through the real API for each seed and keeps a QPSO win."""
+    """
+    Runs the Home page walkthrough (/api/delhi/demo, the same endpoint the page calls) for every seed and
+    picks the worked example with a fixed rule: the first seed where QPSO has the lowest cost in both the
+    initial plan and the re-route; if there is none, the first seed where it has the lowest re-route cost.
+    """
     from fastapi.testclient import TestClient
     import main
 
     client = TestClient(main.app)
     keys = {"QPSO": "qpso", "PSO": "pso", "GA": "ga", "SA": "sa", "Greedy NN": "greedy"}
+    plan_winners = {a: 0 for a in ALL_ALGOS}
     reroute_winners = {a: 0 for a in ALL_ALGOS}
-    chosen = None
+    reroute_curves = {a: [] for a in METAHEURISTICS}
+    qpso_both = 0
+    chosen, fallback = None, None
 
     for seed in DEMO_SEED_RANGE:
-        client.post("/api/delhi/problem/generate", json={**DEMO, "seed": seed}).raise_for_status()
-        step1 = client.post("/api/delhi/optimize", json={"num_particles": DEMO_PARTICLES, "max_iterations": DEMO_ITERATIONS, "seed": seed}).json()
-        traffic = client.post("/api/delhi/traffic/simulate", json={"incident_count": 2}).json()
-        step3 = client.post("/api/delhi/reoptimize", json={"num_particles": DEMO_PARTICLES, "max_iterations": DEMO_ITERATIONS, "seed": seed}).json()
+        res = client.post("/api/delhi/demo", json={**DEMO, "seed": seed, "num_particles": DEMO_PARTICLES,
+                                                   "max_iterations": DEMO_ITERATIONS, "incident_count": 2})
+        res.raise_for_status()
+        demo = res.json()
+        step1, step3 = demo["step1"], demo["step3"]
 
-        costs = {a: step3[k]["final_cost"] for a, k in keys.items()}
-        best = winners(costs)
-        for w in best:
+        for a in METAHEURISTICS:
+            reroute_curves[a].append([p["cost"] for p in step3[keys[a]]["convergence_history"]])
+        best1 = winners({a: step1[k]["final_cost"] for a, k in keys.items()})
+        best3 = winners({a: step3[k]["final_cost"] for a, k in keys.items()})
+        for w in best1:
+            plan_winners[w] += 1
+        for w in best3:
             reroute_winners[w] += 1
-        if chosen is None and best == ["QPSO"]:
-            chosen = {
-                "seed": seed,
-                "incidents": [i["road_name"] for i in traffic["incidents"]],
-                "step1": {a: api_metrics(step1[k]) for a, k in keys.items()},
-                "step3": {a: api_metrics(step3[k]) for a, k in keys.items()},
-            }
-    print(f"[delhi] re-route winners over {len(DEMO_SEED_RANGE)} seeds: {reroute_winners}; example seed = {chosen and chosen['seed']}", flush=True)
+        qpso_both += best1 == ["QPSO"] and best3 == ["QPSO"]
+
+        example = {
+            "seed": seed,
+            "incidents": [i["road_name"] for i in demo["traffic"]["incidents"]],
+            "step1": {a: api_metrics(step1[k]) for a, k in keys.items()},
+            "step3": {a: api_metrics(step3[k]) for a, k in keys.items()},
+        }
+        if chosen is None and best1 == ["QPSO"] and best3 == ["QPSO"]:
+            chosen = example
+        if fallback is None and best3 == ["QPSO"]:
+            fallback = example
+    chosen = chosen or fallback
+    print(f"[delhi] plan winners {plan_winners}; re-route winners {reroute_winners}; QPSO both {qpso_both}; "
+          f"example seed = {chosen and chosen['seed']}", flush=True)
     return {
         **(chosen or {}),
         "config": {**DEMO, "num_particles": DEMO_PARTICLES, "max_iterations": DEMO_ITERATIONS},
+        "selection_rule": "first seed where QPSO has the lowest cost in both the initial plan and the re-route",
         "seeds_tested": len(DEMO_SEED_RANGE),
+        "plan_winner_counts": plan_winners,
         "reroute_winner_counts": reroute_winners,
+        "qpso_wins_both": qpso_both,
+        "reroute_anytime": anytime_table(reroute_curves, METAHEURISTICS, ANYTIME_CHECKPOINTS),
     }
 
 
 if __name__ == "__main__":
     started = time.time()
+    if sys.argv[1:] == ["--only-delhi"]:
+        # Re-run only the Delhi walkthrough and update that section of the existing results file
+        with open(OUT_FILE, encoding="utf-8") as f:
+            output = json.load(f)
+        output["delhi_scenario"] = run_delhi_scenario()
+        with open(OUT_FILE, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=1)
+        print(f"Updated delhi_scenario in {OUT_FILE} ({time.time() - started:.0f}s)")
+        sys.exit(0)
     output = {
         "meta": {
             "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
@@ -310,6 +448,10 @@ if __name__ == "__main__":
         "conditions": {
             "congested": run_tiers("congested"),
             "clear": run_tiers("clear"),
+        },
+        "zones": {
+            "congested": run_zones("congested"),
+            "clear": run_zones("clear"),
         },
         "exact": run_exact(),
         "delhi_scenario": run_delhi_scenario(),

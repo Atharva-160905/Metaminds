@@ -46,28 +46,28 @@ interface HomePageProps {
   onNavigateTab: (tab: 'delhi-map' | 'live-map' | 'benchmark' | 'about') => void;
 }
 
-// Worked example produced by scripts/run_real_benchmarks.py, which replays this exact walkthrough
-// through the live API. Live runs on the page reproduce the same routes and costs.
+// Worked example produced by scripts/run_real_benchmarks.py, which runs this exact walkthrough
+// (/api/delhi/demo) for every seed. The page calls the same endpoint, so it shows the same routes and costs.
 const SCENARIO = benchmarkData?.delhi_scenario ?? null;
 const DEMO_SEED: number = SCENARIO?.seed ?? 42;
 const DEMO_ITERATIONS: number = SCENARIO?.config?.max_iterations ?? 60;
 const DEMO_PARTICLES: number = SCENARIO?.config?.num_particles ?? 25;
 const DEMO_PROBLEM = { num_deliveries: 40, num_riders: 6, rider_capacity: 20, objective: 'balanced' as const };
 
-// The backend keeps one shared Delhi problem, so overlapping generate/optimize calls would corrupt each
-// other (React StrictMode runs mount effects twice in development). Mounts share one in-flight load.
-let demoLoad: Promise<{ genRes: any; optRes: any }> | null = null;
-const loadDemoOnce = () => {
+// The whole walkthrough (plan -> incidents -> re-route) is computed once by the backend on a private problem.
+// The steps only reveal parts of that one result, so clicks, other tabs and other users cannot change it.
+type DemoRun = Awaited<ReturnType<typeof api.runDelhiDemo>>;
+let demoLoad: Promise<DemoRun> | null = null;
+const loadDemo = () => {
   if (!demoLoad) {
-    demoLoad = (async () => {
-      const genRes = await api.generateDelhiProblem({ ...DEMO_PROBLEM, seed: DEMO_SEED });
-      const optRes = await api.runDelhiOptimization({
-        num_particles: DEMO_PARTICLES,
-        max_iterations: DEMO_ITERATIONS,
-        seed: DEMO_SEED
-      });
-      return { genRes, optRes };
-    })().finally(() => { demoLoad = null; });
+    demoLoad = api.runDelhiDemo({
+      ...DEMO_PROBLEM,
+      seed: DEMO_SEED,
+      num_particles: DEMO_PARTICLES,
+      max_iterations: DEMO_ITERATIONS,
+      incident_count: 2
+    });
+    demoLoad.catch(() => { demoLoad = null; }); // allow a retry after a failed request
   }
   return demoLoad;
 };
@@ -79,7 +79,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
   // Fixed demo scenario (must match DEMO in scripts/run_real_benchmarks.py)
   const FIXED_DELIVERIES = 40;
   const FIXED_RIDERS = 6;
-  const FIXED_CAPACITY = 20; // API units; the backend converts this to 120 kg per van
   const CAPACITY_KG = 120;
 
   const [city, setCity] = useState<SyntheticCityData | null>(null);
@@ -130,10 +129,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
     const initDemo = async () => {
       try {
         setIsLoading(true);
-        // Generate the demo problem and run all 5 algorithms (shared across concurrent mounts)
-        const { genRes, optRes } = await loadDemoOnce();
+        // Fetch the fixed walkthrough (shared across mounts) and show its initial plan
+        const optRes = (await loadDemo()).step1;
         if (!isMounted) return;
-        setCity(genRes.city);
         setQpsoResult(optRes.qpso);
         setPsoResult(optRes.pso);
         setGaResult(optRes.ga || null);
@@ -212,20 +210,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
       setCurrentStep(1);
       setDemoStatusText('Running 5-Algorithm Metaheuristic Solver (Normal Conditions)...');
 
-      const genRes = await api.generateDelhiProblem({
-        num_deliveries: FIXED_DELIVERIES,
-        num_riders: FIXED_RIDERS,
-        rider_capacity: FIXED_CAPACITY,
-        objective: 'balanced',
-        seed: DEMO_SEED
-      });
-      setCity(genRes.city);
-
-      const optRes = await api.runDelhiOptimization({
-        num_particles: DEMO_PARTICLES,
-        max_iterations: DEMO_ITERATIONS,
-        seed: DEMO_SEED
-      });
+      const optRes = (await loadDemo()).step1;
       setQpsoResult(optRes.qpso);
       setPsoResult(optRes.pso);
       setGaResult(optRes.ga || null);
@@ -255,11 +240,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
     try {
       setIsLoading(true);
       setDemoStatusText('Injecting two traffic incidents into the road network...');
-      const res = await api.simulateDelhiTraffic(2);
-      setActiveIncidents(res.incidents);
-      setCity(res.city);
+      const demo = await loadDemo();
+      setActiveIncidents(demo.traffic.incidents);
+      if (demo.step3.city) setCity(demo.step3.city); // road network with the incidents marked
       setCurrentStep(2);
-      setDemoStatusText(`Step 2 (Traffic incident): travel to ${res.incidents.length} affected stops is now about 5x slower. Run Step 3 to re-optimise.`);
+      setDemoStatusText(`Step 2 (Traffic incident): travel to ${demo.traffic.incidents.length} affected stops is now about 5x slower. Run Step 3 to re-optimise.`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -272,11 +257,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
     try {
       setIsLoading(true);
       setDemoStatusText('Re-optimising all 5 algorithms from their previous state (warm start)...');
-      const res = await api.reoptimizeDelhi({
-        num_particles: DEMO_PARTICLES,
-        max_iterations: DEMO_ITERATIONS,
-        seed: DEMO_SEED
-      });
+      const demo = await loadDemo();
+      const res = demo.step3;
+      setActiveIncidents(demo.traffic.incidents); // also correct if Step 3 is clicked before Step 2
       setQpsoResult(res.qpso);
       setPsoResult(res.pso);
       setGaResult(res.ga || null);
@@ -705,6 +688,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigateTab }) => {
             </h3>
             <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Worked example: Delhi Okhla, seed {DEMO_SEED}, {DEMO_PARTICLES} particles × {DEMO_ITERATIONS} iterations for every algorithm.
+              {SCENARIO?.qpso_wins_both !== undefined && (
+                <> Chosen as the first of {SCENARIO.seeds_tested} tested seeds where QPSO has the lowest cost in both tables
+                  (true for {SCENARIO.qpso_wins_both} of {SCENARIO.seeds_tested} seeds).</>
+              )}{' '}
               Averages over {SCENARIO?.seeds_tested ?? 'many'} seeds and 5 problem sizes are on the{' '}
               <button onClick={() => onNavigateTab('benchmark')} className="underline font-semibold text-emerald-600 dark:text-emerald-400">Benchmark tab</button>.
             </p>

@@ -16,9 +16,22 @@
 - Optimality gaps use an exact solver that shares the same cost model.
 
 ## 3. The Home page example
-The Home page walks through one Delhi Okhla scenario (40 stops, 6 vans). The script replays that walkthrough through
-the live API for 60 seeds and uses the first seed where QPSO has the lowest post-incident cost as the worked example.
-It is labelled as an example. The number of seeds each algorithm won across all 60 is shown in the Benchmark tab.
+The Home page walks through one Delhi Okhla scenario (40 stops, 6 vans, 2 incidents). The whole walkthrough is computed
+by one backend call (`/api/delhi/demo`) on a private problem and cached, so it gives the same routes and costs on every
+visit, whatever is clicked and however many people use the site at once.
+The script runs that same endpoint for 60 seeds and picks the worked example with a fixed rule: the first seed where
+QPSO has the lowest cost in both the initial plan and the re-route. It is labelled as an example, and the page states how
+many of the 60 seeds meet that rule. The number of seeds each algorithm won across all 60 is shown in the Benchmark tab.
 
-## 4. Hardware statement
+## 4. Real-time dispatch studies (Benchmark studies 5–7)
+These studies look at conditions where QPSO is expected to be strong: tight time budgets, small zones and fast
+re-routing. The conditions (checkpoints 5/10/20 iterations, 20-stop zones, the Delhi re-route) were fixed before the
+script was run. All methods get the same budget, and every result is published whichever method wins.
+- **Study 5, tight budget:** each method's cost after 5, 10 and 20 iterations, as % above the best final cost that seed.
+- **Study 6, zone dispatch:** 100/250/500 stops split into ~20-stop zones by direction from the depot, with vans shared in
+  proportion. The page also shows the unsplit cost, and splitting costs more in total. This study compares the methods
+  on zone-sized problems; it does not show that splitting is the better plan.
+- **Study 7, re-route speed:** the Delhi warm-started re-optimisation on all 60 seeds, measured the same way as Study 5.
+
+## 5. Hardware statement
 QPSO is a classical algorithm inspired by quantum mechanics. It runs on ordinary CPUs; no quantum hardware is used or claimed.
