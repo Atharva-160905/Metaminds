@@ -1,4 +1,4 @@
-# SmartRoute-Q 🚀
+# Pheri 🚀
 ### Quantum-Inspired Intelligent Traffic Route Optimization in Transportation Systems Using Metaheuristic Optimization
 *Smart India Hackathon (SIH 2026) Prototype Demonstration*
 
@@ -6,7 +6,7 @@
 
 ## 🌟 Overview
 
-**SmartRoute-Q** is an intelligent logistics and urban traffic routing system designed for last-mile delivery fleets. It solves the **Capacitated Vehicle Routing Problem (CVRP)** over dynamic synthetic road networks by comparing:
+**Pheri** is an intelligent logistics and urban traffic routing system designed for last-mile delivery fleets. It solves the **Capacitated Vehicle Routing Problem (CVRP)** over dynamic synthetic road networks by comparing:
 1. **Quantum-Behaved Particle Swarm Optimization (QPSO)** (Quantum Delta-Potential Well / Mean-Best Model)
 2. **Classical Particle Swarm Optimization (PSO)** (Shi & Eberhart Inertia-Weighted Velocity Model)
 
